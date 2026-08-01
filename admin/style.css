@@ -321,8 +321,18 @@ body {
 
 #f-editor .ql-editor {
   min-height: 340px;
+  /* 长内容在编辑区内部滚动，工具栏（字号/颜色等）保持固定在顶部不动 */
+  max-height: 58vh;
+  overflow-y: auto;
   font-family: var(--font);
   line-height: 1.85;
+}
+
+/* 工具栏始终吸顶，避免被长内容顶出可视区域 */
+.editor-block .ql-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 /* 让 Quill 工具栏按钮和下拉有中文提示色、协调主题 */
