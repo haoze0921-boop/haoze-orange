@@ -16,7 +16,7 @@ const CONTENT_DIR = path.join(ROOT, 'src', 'content', 'blog');
 const PORT = 4322;
 
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '50mb' })); // 允许较大的文章（含 base64 图片）
 
 // 请求日志：记录所有非 GET 请求（便于排查意外的写入来源）
 app.use((req, _res, next) => {
