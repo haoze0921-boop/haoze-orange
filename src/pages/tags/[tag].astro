@@ -1,11 +1,11 @@
 ---
 import Base from '../../layouts/Base.astro';
 import PostCard from '../../components/PostCard.astro';
-import { getCollection } from 'astro:content';
+import { getVisiblePosts, sortPosts } from '../../lib/posts';
 
 // 单个标签页：/tags/<标签名>
 export async function getStaticPaths() {
-  const posts = await getCollection('blog');
+  const posts = await getVisiblePosts();
   const allTags = new Set<string>();
   for (const post of posts) {
     for (const tag of post.data.tags) {
@@ -22,10 +22,12 @@ export async function getStaticPaths() {
 }
 
 const { tag, posts } = Astro.props;
-const sorted = [...posts].sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const sorted = sortPosts(posts);
+const base = import.meta.env.BASE_URL;
 ---
 
 <Base title={`标签：${tag}`}>
+  <p class="back-link"><a href={`${base}tags`}>← 返回标签总览</a></p>
   <h1>🏷️ 标签：{tag}</h1>
   <p class="post-excerpt">共 {sorted.length} 篇文章</p>
 

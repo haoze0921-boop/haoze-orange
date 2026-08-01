@@ -1,10 +1,10 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getCollection } from 'astro:content';
+import { getVisiblePosts } from '../../lib/posts';
 
-// 分类总览页：卡片式展示每个分类 + 文章数 + 最近文章
+// 分类总览页：卡片式展示每个分类 + 文章数 + 最近文章（不含隐藏文章）
 // 分类 = 文章所在目录（src/content/blog/ 下的文件夹）
-const posts = await getCollection('blog');
+const posts = await getVisiblePosts();
 
 const byCat = new Map<string, typeof posts>();
 for (const post of posts) {

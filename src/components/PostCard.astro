@@ -19,6 +19,7 @@ const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
     {description && <p class="post-card-desc">{description}</p>}
   </a>
   <div class="post-card-meta">
+    {post.data.pinned && <span class="tag-pill pin-pill">📌 置顶</span>}
     <time datetime={date.toISOString()}>{formatDate(date)}</time>
     {
       cat && (

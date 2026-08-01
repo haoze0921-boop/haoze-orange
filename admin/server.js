@@ -73,7 +73,7 @@ function toDateString(d) {
 }
 
 // 生成 Markdown 文件内容（frontmatter + 正文）
-function buildFileContent({ title, description, date, tags, body }) {
+function buildFileContent({ title, description, date, tags, pinned, hidden, body }) {
   const data = {};
   if (title) data.title = String(title).trim();
   if (description) data.description = String(description).trim();
@@ -82,6 +82,8 @@ function buildFileContent({ title, description, date, tags, body }) {
     ? tags.map((t) => String(t).trim()).filter(Boolean)
     : [];
   if (tagList.length) data.tags = tagList;
+  if (pinned) data.pinned = true;
+  if (hidden) data.hidden = true;
   return matter.stringify(body || '', data);
 }
 
@@ -121,6 +123,8 @@ function readPost(rel) {
     description: data.description || '',
     date: toDateString(data.date),
     tags: Array.isArray(data.tags) ? data.tags : [],
+    pinned: !!data.pinned,
+    hidden: !!data.hidden,
     body: (content || '').trim(),
   };
 }
@@ -162,7 +166,7 @@ app.get('/api/posts', (req, res) => {
 
 app.post('/api/posts', (req, res) => {
   try {
-    const { dir = '', slug, title, description, date, tags = [], body = '' } = req.body || {};
+    const { dir = '', slug, title, description, date, tags = [], pinned = false, hidden = false, body = '' } = req.body || {};
     const safeDir = dir ? safeSegment(dir, '目录') : '';
     const safeSlug = safeSegment(slug, '文件名');
     const rel = safeDir ? `${safeDir}/${safeSlug}.md` : `${safeSlug}.md`;
@@ -171,7 +175,7 @@ app.post('/api/posts', (req, res) => {
       return res.status(409).json({ error: `文章「${rel}」已存在` });
     }
     fs.mkdirSync(path.dirname(full), { recursive: true });
-    fs.writeFileSync(full, buildFileContent({ title, description, date, tags, body }), 'utf-8');
+    fs.writeFileSync(full, buildFileContent({ title, description, date, tags, pinned, hidden, body }), 'utf-8');
     res.json({ ok: true, path: rel.replace(/\.md$/, '') });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
@@ -180,7 +184,7 @@ app.post('/api/posts', (req, res) => {
 
 app.put('/api/posts', (req, res) => {
   try {
-    const { path: oldPath, dir = '', slug, title, description, date, tags = [], body = '' } = req.body || {};
+    const { path: oldPath, dir = '', slug, title, description, date, tags = [], pinned = false, hidden = false, body = '' } = req.body || {};
     const safeOld = safePath(oldPath, '原文件');
     const safeDir = dir ? safeSegment(dir, '目录') : '';
     const safeSlug = safeSegment(slug, '文件名');
@@ -191,7 +195,7 @@ app.put('/api/posts', (req, res) => {
       return res.status(404).json({ error: '文章不存在，可能已被删除，请刷新列表' });
     }
     fs.mkdirSync(path.dirname(newFull), { recursive: true });
-    fs.writeFileSync(newFull, buildFileContent({ title, description, date, tags, body }), 'utf-8');
+    fs.writeFileSync(newFull, buildFileContent({ title, description, date, tags, pinned, hidden, body }), 'utf-8');
     if (newFull !== oldFull) fs.rmSync(oldFull, { force: true }); // 改名/移动时删除旧文件
     res.json({ ok: true, path: newRel.replace(/\.md$/, '') });
   } catch (e) {

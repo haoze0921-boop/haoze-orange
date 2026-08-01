@@ -1,9 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { getCollection } from 'astro:content';
+import { getVisiblePosts } from '../../lib/posts';
 
-// 标签总览页：卡片式展示每个标签 + 文章数 + 最近文章
-const posts = await getCollection('blog');
+// 标签总览页：卡片式展示每个标签 + 文章数 + 最近文章（不含隐藏文章）
+const posts = await getVisiblePosts();
 
 const byTag = new Map<string, typeof posts>();
 for (const post of posts) {

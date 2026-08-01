@@ -190,6 +190,9 @@ body {
   white-space: nowrap;
 }
 
+.post-item .cat-badge.pin { background: #fff7ed; color: #c2410c; }
+.post-item .cat-badge.hide { background: #f3f4f6; color: #6b7280; }
+
 .dir-section {
   border-top: 1px solid var(--border);
   padding-top: 0.7rem;
@@ -415,6 +418,31 @@ body {
 .preview-inner th { background: var(--accent-soft); }
 .preview-inner .ql-align-center { text-align: center; }
 .preview-inner .ql-align-right { text-align: right; }
+
+/* 置顶/隐藏开关 */
+.field-switches { align-items: center; }
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+}
+
+.switch:hover { border-color: var(--accent); }
+
+.switch input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 
 /* 标签选择器 */
 .field-tags-label {

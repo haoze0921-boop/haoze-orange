@@ -157,6 +157,8 @@
         <div class="post-item${active}" data-path="${p.path}">
           <div class="post-item-title">${escapeHtml(p.title || '（无标题）')}</div>
           <div class="post-item-meta">
+            ${p.pinned ? '<span class="cat-badge pin">📌 置顶</span>' : ''}
+            ${p.hidden ? '<span class="cat-badge hide">🔒 隐藏</span>' : ''}
             <span>${p.date || ''}</span>
             ${cat ? `<span class="cat-badge">${escapeHtml(cat)}</span>` : ''}
           </div>
@@ -230,6 +232,8 @@
       viewLink.classList.add('hidden');
       editorStatus.textContent = '新建文章';
     }
+    $('f-pinned').checked = current ? !!current.pinned : false;
+    $('f-hidden').checked = current ? !!current.hidden : false;
     renderTagSelector();
     dirty = false;
   }
@@ -254,6 +258,8 @@
       date: $('f-date').value || todayStr(),
       dir: $('f-dir').value,
       tags: selectedTags.slice(),
+      pinned: $('f-pinned').checked,
+      hidden: $('f-hidden').checked,
       body: quill.root.innerHTML,
     };
   }
@@ -436,7 +442,7 @@
   $('btn-publish').addEventListener('click', publish);
   $('btn-publish-close').addEventListener('click', () => publishModal.classList.add('hidden'));
   searchEl.addEventListener('input', renderPostList);
-  ['f-title', 'f-description', 'f-date', 'f-dir'].forEach((id) => {
+  ['f-title', 'f-description', 'f-date', 'f-dir', 'f-pinned', 'f-hidden'].forEach((id) => {
     $(id).addEventListener('input', () => { dirty = true; });
     $(id).addEventListener('change', () => { dirty = true; });
   });

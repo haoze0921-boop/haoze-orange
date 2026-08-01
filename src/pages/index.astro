@@ -1,13 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
 import PostCard from '../components/PostCard.astro';
-import { getCollection } from 'astro:content';
+import { getVisiblePosts, sortPosts } from '../lib/posts';
 import { SITE_DESCRIPTION } from '../consts';
 
-// 首页：按日期倒序展示全部文章
-const posts = (await getCollection('blog')).sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-);
+// 首页：置顶在前，其余按日期倒序；隐藏文章不显示
+const posts = sortPosts(await getVisiblePosts());
 ---
 
 <Base title="首页">

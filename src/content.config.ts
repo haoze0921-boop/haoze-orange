@@ -16,6 +16,10 @@ const blog = defineCollection({
     updated: z.coerce.date().optional(),
     // 标签列表（选填），如 tags: ['生活', '技术']
     tags: z.array(z.string()).default([]),
+    // 置顶（选填）：置顶文章在列表里排最前
+    pinned: z.boolean().default(false),
+    // 隐藏（选填）：隐藏文章不在网站上显示，仅后台可见
+    hidden: z.boolean().default(false),
   }),
 });
 

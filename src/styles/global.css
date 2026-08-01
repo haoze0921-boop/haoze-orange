@@ -225,6 +225,26 @@ a:hover {
   opacity: 0.7;
 }
 
+/* 置顶徽标 */
+.pin-pill {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+/* 详情页返回链接 */
+.back-link {
+  margin: 0 0 0.6rem;
+}
+
+.back-link a {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.back-link a:hover {
+  color: var(--accent-strong);
+}
+
 /* 标签云 */
 .tag-cloud {
   display: flex;
