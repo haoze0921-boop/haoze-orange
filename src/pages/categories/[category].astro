@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+
+// 单个分类页：/categories/<分类名>
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  const cats = new Set<string>();
+  for (const post of posts) {
+    const i = post.id.indexOf('/');
+    if (i !== -1) cats.add(post.id.slice(0, i));
+  }
+  return [...cats].map((category) => ({
+    params: { category },
+    props: {
+      category,
+      posts: posts.filter((p) => p.id.startsWith(category + '/')),
+    },
+  }));
+}
+
+const { category, posts } = Astro.props;
+const sorted = [...posts].sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Base title={`分类：${category}`}>
+  <h1>📁 分类：{category}</h1>
+  <p class="post-excerpt">共 {sorted.length} 篇文章</p>
+
+  <div class="post-list">
+    {
+      sorted.map((post) => (
+        <PostCard post={post} />
+      ))
+    }
+  </div>
+</Base>

@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="关于">
+  <article class="prose">
+    <h1>👋 关于</h1>
+    <p>你好，欢迎来到「浩泽的橘子窝」。</p>
+    <p>
+      这里是浩泽的个人博客，用来记录生活、学习与思考。
+      希望这里的内容能给你带来一点启发，或是一点乐趣。
+    </p>
+
+    <h2>关于博客名</h2>
+    <p>
+      「橘子窝」来自橘子 🍊——平凡，但清甜。希望这个小站也能像橘子一样，
+      朴素踏实，却总愿意给别人一点甜。
+    </p>
+
+    <h2>这里会写什么</h2>
+    <ul>
+      <li>生活随想</li>
+      <li>学习笔记</li>
+      <li>技术心得</li>
+    </ul>
+
+    <h2>关于这个博客</h2>
+    <p>
+      使用 <a href="https://astro.build" target="_blank" rel="noopener">Astro</a>
+      静态站点框架搭建，部署在 GitHub Pages。
+      搭建过程记录在<a href={`${base}blog/build-blog-notes`}>这篇笔记</a>里。
+    </p>
+  </article>
+</Base>

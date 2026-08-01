@@ -1,0 +1,38 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { formatDate } from '../lib/format';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+}
+
+const { post } = Astro.props;
+const { title, description, date, tags } = post.data;
+const base = import.meta.env.BASE_URL;
+// 分类 = 文章所在目录（文件名里的目录部分）
+const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
+---
+
+<article class="post-card">
+  <a class="post-card-link" href={`${base}blog/${post.id}`}>
+    <h2 class="post-card-title">{title}</h2>
+    {description && <p class="post-card-desc">{description}</p>}
+  </a>
+  <div class="post-card-meta">
+    <time datetime={date.toISOString()}>{formatDate(date)}</time>
+    {
+      cat && (
+        <a class="tag-pill" href={`${base}categories/${encodeURIComponent(cat)}`}>
+          #{cat}
+        </a>
+      )
+    }
+    {
+      tags.map((tag) => (
+        <a class="tag-pill" href={`${base}tags/${encodeURIComponent(tag)}`}>
+          #{tag}
+        </a>
+      ))
+    }
+  </div>
+</article>

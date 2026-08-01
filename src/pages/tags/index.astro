@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+// 标签总览页：卡片式展示每个标签 + 文章数 + 最近文章
+const posts = await getCollection('blog');
+
+const byTag = new Map<string, typeof posts>();
+for (const post of posts) {
+  for (const tag of post.data.tags) {
+    if (!byTag.has(tag)) byTag.set(tag, []);
+    byTag.get(tag)!.push(post);
+  }
+}
+
+const tags = [...byTag.entries()]
+  .map(([tag, list]) => ({
+    tag,
+    count: list.length,
+    recent: list.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()).slice(0, 3),
+  }))
+  .sort((a, b) => b.count - a.count);
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="标签">
+  <h1>🏷️ 全部标签</h1>
+  <p class="post-excerpt">共 {tags.length} 个标签 · {posts.length} 篇文章，点卡片查看该标签下的全部文章。</p>
+
+  <div class="card-grid">
+    {
+      tags.map(({ tag, count, recent }) => (
+        <a class="cat-card" href={`${base}tags/${encodeURIComponent(tag)}`}>
+          <div class="cat-card-head">
+            <span class="cat-card-name">#{tag}</span>
+            <span class="cat-card-count">{count} 篇</span>
+          </div>
+          <ul class="cat-card-posts">
+            {
+              recent.map((p) => (
+                <li>{p.data.title}</li>
+              ))
+            }
+          </ul>
+        </a>
+      ))
+    }
+  </div>
+
+  {
+    tags.length === 0 && (
+      <p>还没有标签。写文章时给文章加上标签即可。</p>
+    )
+  }
+</Base>

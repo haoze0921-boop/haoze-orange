@@ -1,0 +1,61 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+import { formatDate } from '../../lib/format';
+
+// 文章详情页：src/content/blog/ 下每个 .md 生成一个 /blog/<文件名> 页面
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const base = import.meta.env.BASE_URL;
+// 分类 = 文章所在目录
+const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
+---
+
+<Base title={post.data.title} description={post.data.description}>
+  <article class="prose">
+    <header class="post-header">
+      <h1>{post.data.title}</h1>
+      <div class="post-meta">
+        <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+        {
+          post.data.updated && (
+            <span>· 更新于 {formatDate(post.data.updated)}</span>
+          )
+        }
+        {
+          cat && (
+            <a class="tag-pill" href={`${base}categories/${encodeURIComponent(cat)}`}>
+              #{cat}
+            </a>
+          )
+        }
+        {
+          post.data.tags.map((tag) => (
+            <a class="tag-pill" href={`${base}tags/${encodeURIComponent(tag)}`}>
+              #{tag}
+            </a>
+          ))
+        }
+      </div>
+      {
+        post.data.description && (
+          <p class="post-excerpt">{post.data.description}</p>
+        )
+      }
+    </header>
+
+    <Content />
+
+    <footer class="post-footer">
+      <a href={`${base}`}>← 返回首页</a>
+    </footer>
+  </article>
+</Base>

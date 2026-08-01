@@ -1,0 +1,115 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="搜索">
+  <h1>🔍 搜索文章</h1>
+  <p class="post-excerpt">按标题、简介、标签和正文内容搜索。</p>
+
+  <input
+    id="search-input"
+    class="search-input"
+    type="search"
+    placeholder="输入关键词，如：博客 / Astro / 生活"
+    autocomplete="off"
+  />
+  <p id="search-status" class="search-status">输入关键词开始搜索…</p>
+  <div id="search-results" class="post-list"></div>
+
+  <script>
+    const base = import.meta.env.BASE_URL;
+    const input = document.getElementById('search-input') as HTMLInputElement;
+    const status = document.getElementById('search-status') as HTMLElement;
+    const results = document.getElementById('search-results') as HTMLElement;
+
+    let index: Array<{
+      title: string;
+      description: string;
+      date: string;
+      tags: string[];
+      slug: string;
+      body: string;
+    }> = [];
+
+    // 拉取构建时生成的索引
+    fetch(`${base}search-index.json`)
+      .then((r) => r.json())
+      .then((data) => {
+        index = data;
+      })
+      .catch(() => {
+        status.textContent = '索引加载失败，请刷新页面重试 🍊';
+      });
+
+    // 把命中的关键字包上 <mark> 高亮
+    function highlight(text: string, keyword: string): string {
+      const i = text.toLowerCase().indexOf(keyword.toLowerCase());
+      if (i === -1) return text;
+      return (
+        text.slice(0, i) +
+        '<mark>' +
+        text.slice(i, i + keyword.length) +
+        '</mark>' +
+        text.slice(i + keyword.length)
+      );
+    }
+
+    // 从 Markdown 源码里去掉符号，保留可读正文片段（用于搜索匹配与摘要）
+    function plainText(md: string): string {
+      return md
+        .replace(/<[^>]+>/g, ' ') // HTML 标签（富文本编辑器保存的内容）
+        .replace(/```[\s\S]*?```/g, ' ') // 代码块
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // 图片
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // 链接只留文字
+        .replace(/[#>*`\-_~|]/g, ' ')
+        .replace(/\s+/g, ' ');
+    }
+
+    input.addEventListener('input', () => {
+      const keyword = input.value.trim();
+      if (!keyword) {
+        status.textContent = '输入关键词开始搜索…';
+        results.innerHTML = '';
+        return;
+      }
+
+      const k = keyword.toLowerCase();
+      const matches = index.filter((item) =>
+        [item.title, item.description, item.tags.join(' '), plainText(item.body)]
+          .join(' ')
+          .toLowerCase()
+          .includes(k)
+      );
+
+      if (matches.length === 0) {
+        status.textContent = `没有找到与「${keyword}」相关的文章 🍊`;
+        results.innerHTML = '';
+        return;
+      }
+
+      status.textContent = `找到 ${matches.length} 篇相关文章`;
+      results.innerHTML = matches
+        .map((item) => {
+          const desc = item.description || plainText(item.body).slice(0, 90);
+          return `
+            <article class="post-card">
+              <a class="post-card-link" href="${base}blog/${item.slug}">
+                <h2 class="post-card-title">${highlight(item.title, keyword)}</h2>
+                ${desc ? `<p class="post-card-desc">${highlight(desc, keyword)}</p>` : ''}
+              </a>
+              <div class="post-card-meta">
+                <time>${item.date}</time>
+                ${item.tags
+                  .map(
+                    (t) =>
+                      `<a class="tag-pill" href="${base}tags/${encodeURIComponent(t)}">#${t}</a>`
+                  )
+                  .join('')}
+              </div>
+            </article>
+          `;
+        })
+        .join('');
+    });
+  </script>
+</Base>

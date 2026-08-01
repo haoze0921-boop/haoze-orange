@@ -1,0 +1,33 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+import { SITE_DESCRIPTION } from '../consts';
+
+// 首页：按日期倒序展示全部文章
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<Base title="首页">
+  <section class="hero">
+    <h1>🍊 欢迎来到浩泽的橘子窝</h1>
+    <p>{SITE_DESCRIPTION}</p>
+  </section>
+
+  <h2 class="section-title">📝 最新文章</h2>
+  <div class="post-list">
+    {
+      posts.map((post) => (
+        <PostCard post={post} />
+      ))
+    }
+  </div>
+
+  {
+    posts.length === 0 && (
+      <p>还没有文章，去 <code>src/content/blog/</code> 里写第一篇吧。</p>
+    )
+  }
+</Base>

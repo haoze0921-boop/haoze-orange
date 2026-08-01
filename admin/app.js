@@ -1,0 +1,450 @@
+// 🍊 橘子窝 · 内容管理后台前端逻辑（富文本编辑器版）
+// 使用 Quill 富文本编辑器 + marked（把旧 Markdown 转 HTML）
+(() => {
+  'use strict';
+
+  // ---------- 状态 ----------
+  let posts = [];
+  let dirs = [];
+  let tags = []; // 标签池
+  let selectedTags = []; // 当前文章选中的标签
+  let siteBase = '/'; // 站点子路径（来自 astro.config 的 base）
+  let current = null; // 当前编辑的文章，新建时为 null
+  let dirty = false;
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const postListEl = $('post-list');
+  const dirListEl = $('dir-list');
+  const searchEl = $('search');
+  const editorEmpty = $('editor-empty');
+  const editorForm = $('editor-form');
+  const statusBadge = $('status-badge');
+  const editorStatus = $('editor-status');
+  const toastEl = $('toast');
+  const publishModal = $('publish-modal');
+  const publishOutput = $('publish-output');
+  const viewLink = $('btn-view');
+
+  // ---------- 工具 ----------
+  function toast(msg, isError = false) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('error', isError);
+    toastEl.classList.remove('hidden');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.add('hidden'), 2600);
+  }
+
+  async function api(url, options) {
+    const res = await fetch(url, options);
+    const isJson = res.headers.get('content-type')?.includes('json');
+    const data = isJson ? await res.json() : await res.text();
+    if (!res.ok) throw new Error(data.error || data || `请求失败（${res.status}）`);
+    return data;
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 把文章正文转成编辑器 HTML：已是 HTML 直接用，否则用 marked 转
+  function bodyToHtml(body) {
+    const b = body || '';
+    try {
+      if (/<[a-z][\s\S]*>/i.test(b)) return b; // 已含 HTML 标签
+      if (window.marked && typeof window.marked.parse === 'function') {
+        return window.marked.parse(b);
+      }
+      return '<p>' + escapeHtml(b).replace(/\n/g, '<br>') + '</p>';
+    } catch (e) {
+      console.error('正文转换失败：', e);
+      return '<p>' + escapeHtml(b).replace(/\n/g, '<br>') + '</p>';
+    }
+  }
+
+  // ---------- Quill 富文本编辑器 ----------
+  const Size = Quill.import('attributors/style/size');
+  Size.whitelist = ['12px', '14px', '16px', '18px', '24px', '32px'];
+  Quill.register(Size, true);
+
+  const quill = new Quill('#f-editor', {
+    theme: 'snow',
+    placeholder: '在这里写正文，就像用 Word 一样：选中文字 → 点工具栏的加粗、字号、颜色…',
+    modules: {
+      toolbar: '#f-toolbar',
+    },
+  });
+
+  quill.on('text-change', () => {
+    dirty = true;
+    updatePreview();
+  });
+
+  // 直接写入内容（比 clipboard.convert 更稳妥），失败也有兜底
+  function setEditorHtml(html) {
+    try {
+      quill.root.innerHTML = html || '';
+    } catch (e) {
+      console.error('编辑器内容加载失败：', e);
+      quill.root.innerHTML = '';
+    }
+    quill.setSelection(0, 0, 'silent');
+    updatePreview();
+    dirty = false;
+  }
+
+  // 右侧实时预览（模拟博客正文排版）
+  function updatePreview() {
+    const el = $('f-preview');
+    if (el) {
+      el.innerHTML = quill.root.innerHTML || '<p style="color:var(--text-muted)">开始输入内容，右侧会实时显示效果</p>';
+    }
+  }
+
+  // ---------- 加载数据 ----------
+  async function loadData() {
+    try {
+      [posts, dirs, tags] = await Promise.all([api('/api/posts'), api('/api/dirs'), api('/api/tags')]);
+    } catch (e) {
+      toast('加载文章失败：' + e.message, true);
+      posts = [];
+      dirs = [];
+    }
+    renderPostList();
+    renderDirs();
+    updateStatusBadge();
+    if (current) {
+      const match = posts.find((p) => p.path === current.path);
+      if (match) current = match;
+      renderEditorForm();
+    }
+  }
+
+  function updateStatusBadge() {
+    api('/api/status').then((s) => {
+      if (s.base) siteBase = s.base;
+      const parts = [];
+      parts.push(s.devRunning ? '网站:运行中' : '网站:未运行');
+      parts.push(s.remote ? '远程:已配置' : '远程:未配置');
+      statusBadge.textContent = parts.join(' · ');
+      statusBadge.className = 'badge ' + (s.devRunning && s.remote ? 'ok' : 'warn');
+    }).catch(() => {
+      statusBadge.textContent = '状态获取失败';
+      statusBadge.className = 'badge err';
+    });
+  }
+
+  // ---------- 渲染列表 ----------
+  function renderPostList() {
+    const kw = searchEl.value.trim().toLowerCase();
+    const list = posts.filter((p) => {
+      if (!kw) return true;
+      return (p.title + ' ' + p.description + ' ' + p.tags.join(' ') + ' ' + p.dir).toLowerCase().includes(kw);
+    });
+    if (list.length === 0) {
+      postListEl.innerHTML = `<div class="post-item" style="color:var(--text-muted)">${kw ? '没有匹配的文章' : '还没有文章，点「＋ 新建文章」开始吧'}</div>`;
+      return;
+    }
+    postListEl.innerHTML = list.map((p) => {
+      const active = current && current.path === p.path ? ' active' : '';
+      const cat = p.dir || '';
+      return `
+        <div class="post-item${active}" data-path="${p.path}">
+          <div class="post-item-title">${escapeHtml(p.title || '（无标题）')}</div>
+          <div class="post-item-meta">
+            <span>${p.date || ''}</span>
+            ${cat ? `<span class="cat-badge">${escapeHtml(cat)}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+    postListEl.querySelectorAll('.post-item[data-path]').forEach((el) => {
+      el.addEventListener('click', () => openPost(posts.find((p) => p.path === el.dataset.path)));
+    });
+  }
+
+  function renderDirs() {
+    if (dirs.length === 0) {
+      dirListEl.innerHTML = `<span style="color:var(--text-muted);font-size:0.78rem">暂无目录，点「＋ 新建」创建分类</span>`;
+      return;
+    }
+    dirListEl.innerHTML = dirs.map((d) => `
+      <span class="dir-chip">
+        ${escapeHtml(d.name)}
+        <span class="count">${d.count}篇</span>
+        <button class="del" data-dir="${escapeHtml(d.name)}" title="删除目录（需为空）">×</button>
+      </span>`).join('');
+    dirListEl.querySelectorAll('.dir-chip .del').forEach((btn) => {
+      btn.addEventListener('click', () => deleteDir(btn.dataset.dir));
+    });
+    dirListEl.querySelectorAll('.dir-chip').forEach((chip) => {
+      const del = chip.querySelector('.del');
+      chip.addEventListener('click', (e) => {
+        if (e.target === del) return;
+        const name = del.dataset.dir;
+        searchEl.value = '';
+        const filtered = posts.filter((p) => p.dir === name);
+        postListEl.innerHTML = filtered.map((p) => `
+          <div class="post-item" data-path="${p.path}">
+            <div class="post-item-title">${escapeHtml(p.title || '（无标题）')}</div>
+            <div class="post-item-meta"><span>${p.date || ''}</span></div>
+          </div>`).join('');
+        postListEl.querySelectorAll('.post-item[data-path]').forEach((el) => {
+          el.addEventListener('click', () => openPost(posts.find((p) => p.path === el.dataset.path)));
+        });
+      });
+    });
+  }
+
+  // ---------- 编辑器 ----------
+  function showEditor(show) {
+    editorEmpty.classList.toggle('hidden', show);
+    editorForm.classList.toggle('hidden', !show);
+  }
+
+  function renderEditorForm() {
+    const dirSel = $('f-dir');
+    dirSel.innerHTML = '<option value="">（未分类）</option>' +
+      dirs.map((d) => `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`).join('');
+    if (current) {
+      dirSel.value = current.dir || '';
+      $('f-title').value = current.title || '';
+      $('f-description').value = current.description || '';
+      $('f-date').value = current.date || todayStr();
+      selectedTags = (current.tags || []).slice();
+      setEditorHtml(bodyToHtml(current.body));
+      viewLink.classList.remove('hidden');
+      viewLink.href = `http://localhost:4321${siteBase}blog/${current.path}/`;
+      editorStatus.textContent = '编辑中：' + current.path;
+    } else {
+      dirSel.value = '';
+      $('f-title').value = '';
+      $('f-description').value = '';
+      $('f-date').value = todayStr();
+      selectedTags = [];
+      setEditorHtml('');
+      viewLink.classList.add('hidden');
+      editorStatus.textContent = '新建文章';
+    }
+    renderTagSelector();
+    dirty = false;
+  }
+
+  function newPost() {
+    current = null;
+    showEditor(true);
+    renderEditorForm();
+    $('f-title').focus();
+  }
+
+  function openPost(post) {
+    current = post;
+    showEditor(true);
+    renderEditorForm();
+  }
+
+  function gatherForm() {
+    return {
+      title: $('f-title').value.trim(),
+      description: $('f-description').value.trim(),
+      date: $('f-date').value || todayStr(),
+      dir: $('f-dir').value,
+      tags: selectedTags.slice(),
+      body: quill.root.innerHTML,
+    };
+  }
+
+  // ---------- 标签选择器 ----------
+  function renderTagSelector() {
+    const box = $('f-tags');
+    const all = [...new Set([...tags, ...selectedTags])].sort((a, b) => a.localeCompare(b, 'zh'));
+    box.innerHTML =
+      all.map((t) => {
+        const on = selectedTags.includes(t) ? ' selected' : '';
+        return `<span class="tag-chip${on}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</span>`;
+      }).join('') +
+      '<input id="f-tag-add" class="tag-add-input" placeholder="＋ 新标签" autocomplete="off">';
+
+    box.querySelectorAll('.tag-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const t = chip.dataset.tag;
+        const i = selectedTags.indexOf(t);
+        if (i >= 0) selectedTags.splice(i, 1);
+        else selectedTags.push(t);
+        renderTagSelector();
+        dirty = true;
+      });
+    });
+
+    const input = document.getElementById('f-tag-add');
+    if (input) {
+      input.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const name = input.value.trim();
+        if (!name) return;
+        try {
+          await api('/api/tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+          });
+          tags = await api('/api/tags');
+          if (!selectedTags.includes(name)) selectedTags.push(name);
+          renderTagSelector();
+          toast('标签「' + name + '」已添加');
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+    }
+  }
+
+  // ---------- 保存 / 删除 ----------
+  async function save() {
+    const f = gatherForm();
+    if (!f.title) { toast('请先填写文章标题', true); $('f-title').focus(); return; }
+    const plain = quill.getText().trim();
+    if (!plain) { toast('正文是空的，写点内容再保存吧', true); return; }
+    const btn = $('btn-save');
+    btn.disabled = true;
+    try {
+      let path;
+      if (current) {
+        const data = await api('/api/posts', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: current.path, slug: current.slug, ...f }),
+        });
+        path = data.path;
+        toast('已保存 ✅');
+      } else {
+        const slug = prompt('请输入文章文件名（将出现在网址里）：', defaultSlug(f.title));
+        if (slug === null) { btn.disabled = false; return; }
+        if (!slug.trim()) { toast('文件名不能为空', true); btn.disabled = false; return; }
+        const data = await api('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...f, slug: slug.trim() }),
+        });
+        path = data.path;
+        toast('文章已创建 ✅');
+      }
+      await loadData();
+      const saved = posts.find((p) => p.path === path);
+      if (saved) { current = saved; renderEditorForm(); }
+      dirty = false;
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function defaultSlug(title) {
+    const t = (title || '').replace(/[^一-龥A-Za-z0-9]+/g, '').slice(0, 12);
+    return t || 'new-post';
+  }
+
+  async function deletePost() {
+    if (!current) return;
+    if (!confirm(`确定要删除文章「${current.title}」吗？此操作不可恢复。`)) return;
+    try {
+      await api('/api/posts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: current.path }),
+      });
+      toast('已删除');
+      current = null;
+      showEditor(false);
+      await loadData();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  // ---------- 目录 ----------
+  async function newDir() {
+    const name = prompt('请输入新的目录名（作为分类名）：');
+    if (!name) return;
+    try {
+      await api('/api/dirs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      toast('目录已创建 ✅');
+      await loadData();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function deleteDir(name) {
+    if (!confirm(`确定删除目录「${name}」吗？（只允许删除空目录）`)) return;
+    try {
+      await api('/api/dirs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      toast('目录已删除');
+      await loadData();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  // ---------- 发布 ----------
+  async function publish() {
+    publishModal.classList.remove('hidden');
+    publishOutput.textContent = '正在执行 git 提交与推送…';
+    const btn = $('btn-publish');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/publish', { method: 'POST' });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let text = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += dec.decode(value, { stream: true });
+        publishOutput.textContent = text;
+        publishOutput.scrollTop = publishOutput.scrollHeight;
+      }
+    } catch (e) {
+      publishOutput.textContent += '\n出错：' + e.message;
+    } finally {
+      btn.disabled = false;
+      updateStatusBadge();
+    }
+  }
+
+  // ---------- 事件绑定 ----------
+  $('btn-new').addEventListener('click', newPost);
+  $('btn-save').addEventListener('click', save);
+  $('btn-delete').addEventListener('click', deletePost);
+  $('btn-refresh').addEventListener('click', () => loadData().then(() => toast('已刷新')));
+  $('btn-new-dir').addEventListener('click', newDir);
+  $('btn-site').addEventListener('click', () => { window.open('http://localhost:4321' + siteBase, '_blank'); });
+  $('btn-publish').addEventListener('click', publish);
+  $('btn-publish-close').addEventListener('click', () => publishModal.classList.add('hidden'));
+  searchEl.addEventListener('input', renderPostList);
+  ['f-title', 'f-description', 'f-date', 'f-dir'].forEach((id) => {
+    $(id).addEventListener('input', () => { dirty = true; });
+    $(id).addEventListener('change', () => { dirty = true; });
+  });
+
+  window.addEventListener('beforeunload', (e) => {
+    if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // 启动
+  loadData();
+})();

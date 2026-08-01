@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🍊 橘子窝 · 内容管理后台</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍊</text></svg>">
+  <link rel="stylesheet" href="/vendor/quill/quill.snow.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">🍊 橘子窝 · 内容管理后台</div>
+    <div class="topbar-actions">
+      <span id="status-badge" class="badge" title="编辑器与博客网站状态">检查中…</span>
+      <button id="btn-site" class="btn btn-ghost">查看网站</button>
+      <button id="btn-publish" class="btn btn-primary">发布到网上</button>
+      <button id="btn-refresh" class="btn btn-ghost" title="刷新文章列表">刷新</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <button id="btn-new" class="btn btn-primary btn-block">＋ 新建文章</button>
+      <input id="search" class="search" type="search" placeholder="搜索文章…" autocomplete="off">
+      <div id="post-list" class="post-list"></div>
+      <div class="dir-section">
+        <div class="dir-head">
+          <span>📁 目录（分类）</span>
+          <button id="btn-new-dir" class="btn btn-mini">＋ 新建</button>
+        </div>
+        <div id="dir-list" class="dir-list"></div>
+      </div>
+    </aside>
+
+    <main class="editor">
+      <div id="editor-empty" class="editor-empty">← 在左侧选择一篇文章，或点「＋ 新建文章」</div>
+      <div id="editor-form" class="editor-form hidden">
+        <input id="f-title" class="field-title" placeholder="文章标题" autocomplete="off">
+        <input id="f-description" class="field" placeholder="一句话简介（选填）" autocomplete="off">
+        <div class="field-row">
+          <label>日期
+            <input id="f-date" class="field" type="date">
+          </label>
+          <label>目录
+            <select id="f-dir" class="field"></select>
+          </label>
+        </div>
+        <label class="field-tags-label">标签（点选添加，可在「＋ 新标签」里创建新标签）
+          <div id="f-tags" class="tag-selector"></div>
+        </label>
+        <div class="editor-split">
+          <div class="editor-block">
+            <div id="f-toolbar" class="ql-toolbar" aria-label="正文格式工具栏">
+            <select class="ql-header" title="标题">
+              <option value="1">标题一</option>
+              <option value="2">标题二</option>
+              <option value="3">标题三</option>
+              <option selected></option>
+            </select>
+            <button class="ql-bold" title="加粗"></button>
+            <button class="ql-italic" title="斜体"></button>
+            <button class="ql-underline" title="下划线"></button>
+            <button class="ql-strike" title="删除线"></button>
+            <select class="ql-size" title="字号">
+              <option value="12px">小</option>
+              <option value="14px">正文</option>
+              <option value="16px">较大</option>
+              <option value="18px">大</option>
+              <option value="24px">特大</option>
+              <option value="32px">超大</option>
+            </select>
+            <select class="ql-color" title="字体颜色"></select>
+            <select class="ql-background" title="高亮背景"></select>
+            <button class="ql-list" value="ordered" title="有序列表"></button>
+            <button class="ql-list" value="bullet" title="无序列表"></button>
+            <button class="ql-blockquote" title="引用"></button>
+            <button class="ql-code-block" title="代码块"></button>
+            <button class="ql-link" title="插入链接"></button>
+            <button class="ql-image" title="插入图片"></button>
+            <button class="ql-clean" title="清除格式"></button>
+          </div>
+            <div id="f-editor" aria-label="正文编辑区"></div>
+          </div>
+          <div class="preview-pane">
+            <div class="preview-head">👀 实时预览</div>
+            <div id="f-preview" class="preview-inner"></div>
+          </div>
+        </div>
+        <div class="editor-actions">
+          <button id="btn-save" class="btn btn-primary">保存</button>
+          <button id="btn-delete" class="btn btn-danger">删除文章</button>
+          <a id="btn-view" class="btn btn-ghost hidden" target="_blank" rel="noopener">在网站打开 ↗</a>
+          <span id="editor-status" class="editor-status"></span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="publish-modal" class="modal hidden">
+    <div class="modal-box">
+      <h3>🚀 发布到网上</h3>
+      <pre id="publish-output" class="publish-output">正在执行…</pre>
+      <div class="modal-actions">
+        <button id="btn-publish-close" class="btn btn-primary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/marked/marked.umd.js"></script>
+  <script src="/vendor/quill/quill.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

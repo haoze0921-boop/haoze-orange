@@ -1,0 +1,38 @@
+---
+import { SITE_TITLE } from '../consts';
+
+// 站点部署的子路径，如 '/' 或 '/orange-nest/'，所有链接用它拼
+const base = import.meta.env.BASE_URL;
+const current = Astro.url.pathname;
+
+const links = [
+  { href: `${base}`, label: '首页' },
+  { href: `${base}tags`, label: '标签' },
+  { href: `${base}categories`, label: '分类' },
+  { href: `${base}search`, label: '搜索' },
+  { href: `${base}about`, label: '关于' },
+];
+
+// 判断当前链接是否激活（首页精确匹配，其余前缀匹配）
+function isActive(href: string): boolean {
+  if (href === base) return current === base;
+  return current.startsWith(href);
+}
+---
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="site-title" href={`${base}`} aria-label="回到首页">
+      🍊 {SITE_TITLE}
+    </a>
+    <nav class="site-nav">
+      {
+        links.map((link) => (
+          <a href={link.href} aria-current={isActive(link.href) ? 'page' : undefined}>
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</header>
