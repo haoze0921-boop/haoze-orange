@@ -4,6 +4,7 @@ description: 记录我是怎么从零搭起这个博客的，包括技术选型�
 date: '2026-08-01'
 tags:
   - 未分配
+hidden: true
 ---
 <p>这个博客是用 <a href="https://astro.build">Astro</a> 静态站点框架搭建的。写这篇笔记，既是记录过程，也方便以后自己回顾和扩展。</p><p>
 </p><h2>为什么选 Astro</h2><p>

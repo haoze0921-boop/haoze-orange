@@ -4,6 +4,7 @@ description: 这篇是用来演示标签功能的，一个文章可以同时属�
 date: '2026-08-01'
 tags:
   - 未分配
+hidden: true
 ---
 <p>这篇是<strong>标签功能的演示文章</strong>。</p><p>
 </p><h2>标签是怎么工作的</h2><p>
