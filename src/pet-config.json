@@ -11,7 +11,7 @@
       "累了，想喝口橙汁～"
     ],
     "distance": 130,
-    "durationMs": 2500
+    "durationMs": 500
   },
   "ai": {
     "baseURL": "https://api.deepseek.com",
