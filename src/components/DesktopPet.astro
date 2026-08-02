@@ -1,0 +1,468 @@
+---
+// 桌宠：右下角悬浮的卡通角色
+// 交互：悬停变大歪头 · 鼠标靠近冒气泡(自动消失) · 单击跳跃并打开聊天框 · 拖拽换位置
+// 配置来自 src/pet-config.json（后台「桌宠」页可改），注入到页面供浏览器使用
+const base = import.meta.env.BASE_URL;
+import petConfig from '../pet-config.json';
+const PET = petConfig;
+---
+
+<div class="pet-wrap" id="pet-wrap" aria-hidden="true">
+  <div class="pet-bubble" id="pet-bubble"></div>
+  <img class="pet-img" id="pet-img" src={`${base}pet/front.png`} alt="" draggable="false">
+</div>
+
+<div class="pet-chat" id="pet-chat" role="dialog" aria-label="桌宠聊天">
+  <div class="pet-chat-head">
+    <span class="pet-chat-name">{PET.persona.name || '桌宠'}</span>
+    <button class="pet-chat-close" id="pet-chat-close" type="button" title="关闭聊天" aria-label="关闭聊天">✕</button>
+  </div>
+  <div class="pet-chat-msgs" id="pet-chat-msgs"></div>
+  <div class="pet-chat-input">
+    <input id="pet-chat-input" type="text" placeholder={`和${PET.persona.name || '桌宠'}说点什么…`} autocomplete="off" maxlength="200">
+    <button id="pet-chat-send" type="button">发送</button>
+  </div>
+</div>
+
+<script is:inline type="application/json" id="pet-config">{JSON.stringify(PET).replace(/</g, '\\u003c')}</script>
+
+<style>
+  .pet-wrap {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 100;
+    width: 150px;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    opacity: 1;
+    transition: opacity 0.3s;
+    animation: pet-bob 3.4s var(--ease-in-out, ease-in-out) infinite;
+  }
+  .pet-wrap.dragging { cursor: grabbing; animation-play-state: paused; }
+
+  .pet-img {
+    display: block;
+    width: 150px;
+    height: auto;
+    filter: drop-shadow(0 8px 16px rgba(61, 58, 52, 0.28));
+    transform-origin: 50% 90%;
+    transition: transform 0.25s var(--ease-out, ease-out);
+  }
+  @media (hover: hover) {
+    .pet-wrap:hover .pet-img { transform: scale(1.08) rotate(-4deg); }
+  }
+  .pet-wrap:active .pet-img { transform: scale(0.96); }
+
+  .pet-img.jumping { animation: pet-jump 0.62s var(--ease-out, ease-out); }
+
+  .pet-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 14px);
+    transform: translateX(-50%) scale(0.9);
+    transform-origin: 50% 100%;
+    background: #fff;
+    color: #3d3a34;
+    border: 1px solid #f0e9dc;
+    border-radius: 14px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(61, 58, 52, 0.16);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s var(--ease-out, ease-out), transform 0.2s var(--ease-out, ease-out);
+  }
+  .pet-bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  .pet-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border: 6px solid transparent;
+    border-top-color: #fff;
+  }
+
+  /* 聊天框 */
+  .pet-chat {
+    position: fixed;
+    z-index: 101;
+    width: 300px;
+    height: 380px;
+    display: none;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #f0e9dc;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(61, 58, 52, 0.22);
+    overflow: hidden;
+    font-size: 0.88rem;
+  }
+  .pet-chat.show { display: flex; animation: pet-chat-in 0.22s var(--ease-out, ease-out); }
+
+  .pet-chat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.9rem;
+    background: #fff4e0;
+    color: #d97706;
+    font-weight: 600;
+  }
+  .pet-chat-close {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #8a857b;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .pet-chat-close:hover { color: #3d3a34; }
+
+  .pet-chat-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .pet-chat-msgs .msg {
+    max-width: 85%;
+    padding: 0.45rem 0.7rem;
+    border-radius: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    animation: msg-in 0.18s var(--ease-out, ease-out);
+  }
+  .pet-chat-msgs .msg.user { align-self: flex-end; background: #f59e0b; color: #fff; border-bottom-right-radius: 3px; }
+  .pet-chat-msgs .msg.ai { align-self: flex-start; background: #f6f3ec; color: #3d3a34; border-bottom-left-radius: 3px; }
+  .pet-chat-msgs .msg.thinking { align-self: flex-start; background: #f6f3ec; color: #8a857b; font-style: italic; }
+
+  .pet-chat-input {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.6rem;
+    border-top: 1px solid #f0e9dc;
+  }
+  .pet-chat-input input {
+    flex: 1;
+    font: inherit;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #f0e9dc;
+    border-radius: 999px;
+    outline: none;
+  }
+  .pet-chat-input input:focus { border-color: #f59e0b; }
+  .pet-chat-input button {
+    border: none;
+    background: #f59e0b;
+    color: #fff;
+    padding: 0 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    transition: background 0.15s;
+  }
+  .pet-chat-input button:hover { background: #d97706; }
+  .pet-chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @keyframes pet-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  @keyframes pet-jump {
+    0% { transform: translateY(0) scale(1, 1); }
+    30% { transform: translateY(-30px) scale(0.94, 1.1); }
+    55% { transform: translateY(0) scale(1.06, 0.9); }
+    75% { transform: translateY(-9px) scale(0.98, 1.03); }
+    100% { transform: translateY(0) scale(1, 1); }
+  }
+  @keyframes pet-chat-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pet-wrap { animation: none; }
+    .pet-img.jumping { animation: none; }
+    .pet-img { transition: none; }
+    .pet-chat.show { animation: none; }
+  }
+  @media (max-width: 520px) {
+    .pet-wrap, .pet-img { width: 112px; }
+    .pet-chat { width: calc(100vw - 32px); max-width: 300px; }
+  }
+</style>
+
+<script>
+  (() => {
+    'use strict';
+    const wrap = document.getElementById('pet-wrap');
+    const img = document.getElementById('pet-img');
+    const bubble = document.getElementById('pet-bubble');
+    if (!wrap || !img) return;
+
+    // 读取注入的配置（后台「桌宠」页可改）
+    let CFG = null;
+    try {
+      const el = document.getElementById('pet-config');
+      CFG = el ? JSON.parse(el.textContent) : null;
+    } catch { CFG = null; }
+    const BUBBLE = (CFG && CFG.bubble) || {};
+    const AI = (CFG && CFG.ai) || {};
+    const PERSONA = (CFG && CFG.persona) || {};
+    const TOOLS = (CFG && CFG.tools) || {};
+    const bubbleMessages = (BUBBLE.messages && BUBBLE.messages.length) ? BUBBLE.messages : ['喵～'];
+    const base = import.meta.env.BASE_URL;
+
+    // ---------- 位置（默认右下角，可拖拽） ----------
+    const W = 150, GAP = 24;
+    let x, y;
+    function applyDefaultPos() {
+      const w = img.offsetWidth || W;
+      const h = img.offsetHeight || w * 1.28;
+      x = Math.max(0, window.innerWidth - w - GAP);
+      y = Math.max(0, window.innerHeight - h - GAP);
+      wrap.style.left = x + 'px';
+      wrap.style.top = y + 'px';
+      wrap.style.right = 'auto';
+      wrap.style.bottom = 'auto';
+    }
+    applyDefaultPos();
+    if (!img.complete) img.addEventListener('load', applyDefaultPos);
+
+    // ---------- 拖拽 + 单击 ----------
+    let dragging = false, moved = false;
+    let sx = 0, sy = 0, ox = 0, oy = 0;
+    function onDown(e) {
+      dragging = true; moved = false;
+      sx = e.clientX; sy = e.clientY; ox = x; oy = y;
+      wrap.classList.add('dragging');
+      try { wrap.setPointerCapture(e.pointerId); } catch { /* 忽略 */ }
+      e.preventDefault();
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      if (moved) {
+        x = Math.min(Math.max(0, ox + dx), window.innerWidth - 40);
+        y = Math.min(Math.max(0, oy + dy), window.innerHeight - 40);
+        wrap.style.left = x + 'px';
+        wrap.style.top = y + 'px';
+      }
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      wrap.classList.remove('dragging');
+      if (!moved) {
+        playOnce('jumping');
+        openChat();
+      }
+    }
+    function playOnce(cls) {
+      img.classList.remove(cls);
+      void img.offsetWidth; // 强制重排以重启动画
+      img.classList.add(cls);
+    }
+
+    // ---------- 鼠标靠近 → 冒气泡，一段时间后消失 ----------
+    let wasNear = false;
+    let bubbleTimer = null;
+    function showBubble() {
+      bubble.textContent = bubbleMessages[Math.floor(Math.random() * bubbleMessages.length)];
+      bubble.classList.add('show');
+      clearTimeout(bubbleTimer);
+      bubbleTimer = setTimeout(() => {
+        bubble.classList.remove('show');
+        bubbleTimer = null;
+      }, BUBBLE.durationMs || 2500);
+    }
+    document.addEventListener('mousemove', (e) => {
+      const r = wrap.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      const d = BUBBLE.distance || 130;
+      const near = dist < d;
+      // 偏头看向你
+      if (near) {
+        img.style.transform = `scale(1.06) rotate(${e.clientX >= cx ? 1 : -1}deg)`;
+      } else {
+        img.style.transform = '';
+      }
+      // 靠近触发气泡（聊天框打开时不再冒泡，避免干扰）
+      const chatOpen = chat.classList.contains('show');
+      if (near && !wasNear && BUBBLE.enabled !== false && !chatOpen) showBubble();
+      wasNear = near;
+    });
+
+    // ---------- 聊天框 ----------
+    const chat = document.getElementById('pet-chat');
+    const msgsEl = document.getElementById('pet-chat-msgs');
+    const chatInput = document.getElementById('pet-chat-input');
+    const chatSend = document.getElementById('pet-chat-send');
+    const chatClose = document.getElementById('pet-chat-close');
+
+    function openChat() {
+      chat.classList.add('show');
+      // 聊天框贴近桌宠摆放（放不下翻到下方）
+      const r = wrap.getBoundingClientRect();
+      const cw = chat.offsetWidth || 300;
+      const ch = chat.offsetHeight || 380;
+      let left = r.left + r.width - cw;
+      left = Math.max(8, Math.min(left, window.innerWidth - cw - 8));
+      let top = r.top - ch - 12;
+      if (top < 8) top = Math.min(r.bottom + 12, window.innerHeight - ch - 8);
+      chat.style.left = left + 'px';
+      chat.style.top = Math.max(8, top) + 'px';
+      chatInput.focus();
+    }
+    chatClose.addEventListener('click', () => chat.classList.remove('show'));
+
+    function appendMsg(role, text) {
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = text;
+      msgsEl.appendChild(div);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      return div;
+    }
+
+    // 工具定义（OpenAI 函数调用格式）
+    const toolDefs = [];
+    if (TOOLS.searchBlog) {
+      toolDefs.push({
+        type: 'function',
+        function: {
+          name: 'search_blog',
+          description: '搜索这个博客里的文章。当用户问博客里有什么内容、或需要查找某篇文章时使用。',
+          parameters: {
+            type: 'object',
+            properties: { query: { type: 'string', description: '搜索关键词，中文即可' } },
+            required: ['query'],
+          },
+        },
+      });
+    }
+    if (TOOLS.currentTime) {
+      toolDefs.push({
+        type: 'function',
+        function: { name: 'get_current_time', description: '获取当前的日期和时间。', parameters: { type: 'object', properties: {} } },
+      });
+    }
+
+    async function toolSearchBlog(query) {
+      try {
+        const res = await fetch(base + 'search-index.json', { cache: 'no-store' });
+        if (!res.ok) return '搜索索引加载失败';
+        const index = await res.json();
+        const q = String(query || '').toLowerCase();
+        const hits = (Array.isArray(index) ? index : [])
+          .filter((p) => (p.title + ' ' + (p.description || '') + ' ' + (p.tags || []).join(' ') + ' ' + (p.body || '')).toLowerCase().includes(q))
+          .slice(0, 3);
+        if (!hits.length) return '没有找到相关文章';
+        return hits.map((h) => `《${h.title}》(${h.date || '无日期'}) 链接: ${base}blog/${h.slug}/`).join('\n');
+      } catch { return '搜索出错了'; }
+    }
+    function toolCurrentTime() {
+      const n = new Date();
+      return `现在是 ${n.getFullYear()}年${n.getMonth() + 1}月${n.getDate()}日 ${n.getHours()}:${String(n.getMinutes()).padStart(2, '0')}，星期${'日一二三四五六'[n.getDay()]}`;
+    }
+
+    async function callAI(history) {
+      if (!AI.apiKey) return '桌宠 AI 还没配置好哦～（后台 → 桌宠 → AI 配置里填上 Key 就行）';
+      const messages = [
+        { role: 'system', content: PERSONA.systemPrompt || '你是一只可爱的小桌宠，回答简短有趣。' },
+        ...history.slice(-12),
+      ];
+      let current = messages;
+      for (let round = 0; round < 3; round++) {
+        const body = {
+          model: AI.model || 'deepseek-chat',
+          messages: current,
+          temperature: Number(AI.temperature) || 0.9,
+          max_tokens: Number(AI.maxTokens) || 300,
+          stream: false,
+        };
+        if (toolDefs.length) body.tools = toolDefs;
+        let res;
+        try {
+          res = await fetch(String(AI.baseURL || '').replace(/\/+$/, '') + '/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + AI.apiKey },
+            body: JSON.stringify(body),
+          });
+        } catch {
+          return '网络连接失败，稍后再试～';
+        }
+        if (!res.ok) {
+          const txt = (await res.text().catch(() => '')).slice(0, 180);
+          return `AI 出错了（${res.status}）：${txt || '请检查后台里的接口地址和 Key'}`;
+        }
+        const data = await res.json();
+        const msg = data.choices && data.choices[0] && data.choices[0].message;
+        if (!msg) return 'AI 没有返回内容，换个说法试试？';
+        if (msg.tool_calls && msg.tool_calls.length) {
+          current = current.concat([msg]);
+          for (const tc of msg.tool_calls) {
+            if (!tc.function) continue;
+            let out = '工具不存在';
+            try {
+              const args = JSON.parse(tc.function.arguments || '{}');
+              if (tc.function.name === 'search_blog') out = await toolSearchBlog(args.query || '');
+              else if (tc.function.name === 'get_current_time') out = toolCurrentTime();
+            } catch { out = '工具执行出错'; }
+            current.push({ role: 'tool', tool_call_id: tc.id, content: String(out) });
+          }
+          continue;
+        }
+        return msg.content || '（空回复）';
+      }
+      return '好像聊不动了，换句话试试？';
+    }
+
+    let history = [];
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = '';
+      appendMsg('user', text);
+      history.push({ role: 'user', content: text });
+      const thinking = appendMsg('thinking', '正在想…');
+      chatSend.disabled = true;
+      const reply = await callAI(history);
+      thinking.remove();
+      appendMsg('ai', reply);
+      history.push({ role: 'assistant', content: reply });
+      chatSend.disabled = false;
+      chatInput.focus();
+    }
+    chatSend.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !chatSend.disabled) sendMessage();
+    });
+
+    // ---------- 事件绑定 ----------
+    wrap.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('resize', () => {
+      x = Math.min(x, window.innerWidth - 40);
+      y = Math.min(y, window.innerHeight - 40);
+      wrap.style.left = x + 'px';
+      wrap.style.top = y + 'px';
+    });
+  })();
+</script>

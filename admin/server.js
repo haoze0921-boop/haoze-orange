@@ -498,6 +498,127 @@ app.delete('/api/uploads', (req, res) => {
   }
 });
 
+// ---------- API：桌宠配置 ----------
+// 桌宠 + AI 聊天的配置，存 src/pet-config.json（浏览器直连 AI，Key 会随页面公开）
+const PET_CONFIG_FILE = path.join(ROOT, 'src', 'pet-config.json');
+
+const DEFAULT_PET_CONFIG = {
+  enabled: true,
+  bubble: {
+    enabled: true,
+    messages: ['你好呀～', '喵～', '🍊 今天也要开心哦', '带我逛逛你的博客吧', '嘿嘿，被你发现啦', '累了，想喝口橙汁～'],
+    distance: 130,
+    durationMs: 2500,
+  },
+  ai: {
+    baseURL: 'https://api.deepseek.com/v1',
+    apiKey: '',
+    model: 'deepseek-chat',
+    temperature: 0.9,
+    maxTokens: 300,
+  },
+  persona: {
+    name: '橘子',
+    systemPrompt: '你是「橘子」，浩泽的橘子窝博客的桌宠。你活泼可爱，喜欢用颜文字和 emoji，回答简短有趣，不超过 80 字。',
+  },
+  tools: { searchBlog: true, currentTime: true },
+  mcpReserved: {
+    enabled: false,
+    serverUrl: '',
+    note: '预留：未来可在此配置外部 MCP 服务（需要服务端环境支持，本期未启用）',
+  },
+};
+
+function readPetConfig() {
+  try {
+    const data = JSON.parse(fs.readFileSync(PET_CONFIG_FILE, 'utf-8'));
+    return {
+      ...DEFAULT_PET_CONFIG,
+      ...data,
+      bubble: { ...DEFAULT_PET_CONFIG.bubble, ...(data.bubble || {}) },
+      ai: { ...DEFAULT_PET_CONFIG.ai, ...(data.ai || {}) },
+      persona: { ...DEFAULT_PET_CONFIG.persona, ...(data.persona || {}) },
+      tools: { ...DEFAULT_PET_CONFIG.tools, ...(data.tools || {}) },
+      mcpReserved: { ...DEFAULT_PET_CONFIG.mcpReserved, ...(data.mcpReserved || {}) },
+    };
+  } catch {
+    return JSON.parse(JSON.stringify(DEFAULT_PET_CONFIG));
+  }
+}
+
+function sanitizePetConfig(input) {
+  const b = input && typeof input === 'object' ? input : {};
+  const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const num = (v, lo, hi, dft) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return dft;
+    return Math.min(hi, Math.max(lo, n));
+  };
+  const bool = (v, dft) => (typeof v === 'boolean' ? v : dft);
+  const msgs = Array.isArray(b.bubble && b.bubble.messages)
+    ? b.bubble.messages.map((m) => String(m).trim().slice(0, 60)).filter(Boolean).slice(0, 20)
+    : [...DEFAULT_PET_CONFIG.bubble.messages];
+  return {
+    enabled: bool(b.enabled, true),
+    bubble: {
+      enabled: bool(b.bubble && b.bubble.enabled, true),
+      messages: msgs,
+      distance: num(b.bubble && b.bubble.distance, 40, 500, 130),
+      durationMs: num(b.bubble && b.bubble.durationMs, 500, 20000, 2500),
+    },
+    ai: {
+      baseURL: str(b.ai && b.ai.baseURL, 200) || DEFAULT_PET_CONFIG.ai.baseURL,
+      apiKey: typeof (b.ai && b.ai.apiKey) === 'string' ? b.ai.apiKey.slice(0, 300) : '',
+      model: str(b.ai && b.ai.model, 100) || DEFAULT_PET_CONFIG.ai.model,
+      temperature: num(b.ai && b.ai.temperature, 0, 2, 0.9),
+      maxTokens: Math.round(num(b.ai && b.ai.maxTokens, 1, 8000, 300)),
+    },
+    persona: {
+      name: str(b.persona && b.persona.name, 30) || DEFAULT_PET_CONFIG.persona.name,
+      systemPrompt: typeof (b.persona && b.persona.systemPrompt) === 'string' ? b.persona.systemPrompt.slice(0, 4000) : '',
+    },
+    tools: {
+      searchBlog: bool(b.tools && b.tools.searchBlog, true),
+      currentTime: bool(b.tools && b.tools.currentTime, true),
+    },
+    mcpReserved: {
+      enabled: bool(b.mcpReserved && b.mcpReserved.enabled, false),
+      serverUrl: str(b.mcpReserved && b.mcpReserved.serverUrl, 300),
+      note: str(b.mcpReserved && b.mcpReserved.note, 300) || DEFAULT_PET_CONFIG.mcpReserved.note,
+    },
+  };
+}
+
+app.get('/api/pet', (_req, res) => {
+  try {
+    res.json(readPetConfig());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/pet', (req, res) => {
+  try {
+    // 部分更新：子对象逐字段合并，没传的沿用现有，避免误清空
+    const existing = readPetConfig();
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    const mergeObj = (cur, inc) => (inc && typeof inc === 'object' ? { ...cur, ...inc } : cur);
+    const merged = {
+      enabled: b.enabled !== undefined ? b.enabled : existing.enabled,
+      bubble: mergeObj(existing.bubble, b.bubble),
+      ai: mergeObj(existing.ai, b.ai),
+      persona: mergeObj(existing.persona, b.persona),
+      tools: mergeObj(existing.tools, b.tools),
+      mcpReserved: mergeObj(existing.mcpReserved, b.mcpReserved),
+    };
+    const out = sanitizePetConfig(merged);
+    fs.writeFileSync(PET_CONFIG_FILE, JSON.stringify(out, null, 2), 'utf-8');
+    res.json({ ok: true, config: out });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
 // ---------- API：状态与发布 ----------
 
 app.get('/api/status', async (req, res) => {

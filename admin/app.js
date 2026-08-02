@@ -227,15 +227,16 @@
     positionImgPanel(currentImg.getBoundingClientRect());
   });
 
-  // ---------- 标签页切换（文章 / 图片库 / 站点设置） ----------
+  // ---------- 标签页切换（文章 / 图片库 / 站点设置 / 桌宠） ----------
   function switchPanel(name) {
-    ['posts', 'media', 'settings'].forEach((p) => {
+    ['posts', 'media', 'settings', 'pet'].forEach((p) => {
       $('panel-' + p).classList.toggle('hidden', p !== name);
     });
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.panel === name));
     if (name === 'posts') showEditor(!!current);
     if (name === 'media') loadMedia();
     if (name === 'settings') loadSettings();
+    if (name === 'pet') loadPet();
   }
   document.querySelectorAll('.tab').forEach((t) => {
     t.addEventListener('click', () => switchPanel(t.dataset.panel));
@@ -399,6 +400,81 @@
       });
       $('settings-status').textContent = '已保存 ✅（记得点「发布到网上」生效）';
       toast('设置已保存');
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- 桌宠设置 ----------
+  function setSel(el, val) {
+    if (el) el.value = String(!!val);
+  }
+
+  async function loadPet() {
+    try {
+      const p = await api('/api/pet');
+      setSel($('p-enabled'), p.enabled);
+      $('p-baseurl').value = p.ai.baseURL || '';
+      $('p-apikey').value = p.ai.apiKey || '';
+      $('p-model').value = p.ai.model || '';
+      $('p-temperature').value = p.ai.temperature;
+      $('p-maxtokens').value = p.ai.maxTokens;
+      $('p-name').value = p.persona.name || '';
+      $('p-systemprompt').value = p.persona.systemPrompt || '';
+      setSel($('p-bubble-enabled'), p.bubble.enabled);
+      $('p-bubble-messages').value = (p.bubble.messages || []).join('\n');
+      $('p-bubble-distance').value = p.bubble.distance;
+      $('p-bubble-duration').value = p.bubble.durationMs;
+      $('p-tool-search').checked = !!p.tools.searchBlog;
+      $('p-tool-time').checked = !!p.tools.currentTime;
+      setSel($('p-mcp-enabled'), p.mcpReserved.enabled);
+      $('p-mcp-url').value = p.mcpReserved.serverUrl || '';
+    } catch (e) {
+      toast('加载桌宠设置失败：' + e.message, true);
+    }
+  }
+
+  $('btn-save-pet').addEventListener('click', async () => {
+    const body = {
+      enabled: $('p-enabled').value === 'true',
+      ai: {
+        baseURL: $('p-baseurl').value.trim(),
+        apiKey: $('p-apikey').value, // 不 trim，Key 原样保存
+        model: $('p-model').value.trim(),
+        temperature: Number($('p-temperature').value),
+        maxTokens: Number($('p-maxtokens').value),
+      },
+      persona: {
+        name: $('p-name').value.trim(),
+        systemPrompt: $('p-systemprompt').value,
+      },
+      bubble: {
+        enabled: $('p-bubble-enabled').value === 'true',
+        messages: $('p-bubble-messages').value.split('\n').map((s) => s.trim()).filter(Boolean),
+        distance: Number($('p-bubble-distance').value),
+        durationMs: Number($('p-bubble-duration').value),
+      },
+      tools: {
+        searchBlog: $('p-tool-search').checked,
+        currentTime: $('p-tool-time').checked,
+      },
+      mcpReserved: {
+        enabled: $('p-mcp-enabled').value === 'true',
+        serverUrl: $('p-mcp-url').value.trim(),
+      },
+    };
+    const btn = $('btn-save-pet');
+    btn.disabled = true;
+    try {
+      await api('/api/pet', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      $('pet-status').textContent = '已保存 ✅（记得点「发布到网上」生效）';
+      toast('桌宠设置已保存');
     } catch (e) {
       toast(e.message, true);
     } finally {

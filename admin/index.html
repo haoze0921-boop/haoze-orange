@@ -24,6 +24,7 @@
     <button class="tab active" data-panel="posts" type="button">📝 文章</button>
     <button class="tab" data-panel="media" type="button">🖼 图片库</button>
     <button class="tab" data-panel="settings" type="button">⚙️ 站点设置</button>
+    <button class="tab" data-panel="pet" type="button">🐱 桌宠</button>
   </nav>
 
   <section id="panel-posts">
@@ -154,6 +155,89 @@
       <div class="settings-actions">
         <button id="btn-save-settings" class="btn btn-primary" type="button">保存设置</button>
         <span id="settings-status" class="editor-status"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-pet" class="panel hidden">
+    <div class="panel-head">
+      <h2>🐱 桌宠</h2>
+      <p class="panel-tip">配置右下角桌宠与 AI 聊天。保存后点「发布到网上」生效。<strong>注意：AI 的 API Key 会写进网页源码并随仓库公开，请用额度受限、可随时吊销的 Key。</strong></p>
+    </div>
+    <div class="settings-form">
+      <label class="settings-field">显示桌宠
+        <select id="p-enabled" class="field">
+          <option value="true">显示</option>
+          <option value="false">隐藏</option>
+        </select>
+      </label>
+
+      <div class="settings-label">🤖 AI 配置（OpenAI 兼容接口）</div>
+      <label class="settings-field">接口地址
+        <input id="p-baseurl" class="field" placeholder="如 https://api.deepseek.com/v1" maxlength="200">
+      </label>
+      <label class="settings-field">API Key
+        <input id="p-apikey" class="field" type="password" placeholder="粘贴你的 Key" maxlength="300">
+      </label>
+      <label class="settings-field">模型名
+        <input id="p-model" class="field" placeholder="如 deepseek-chat" maxlength="100">
+      </label>
+      <div class="nav-row">
+        <label class="settings-field" style="flex:1">温度（0–2）
+          <input id="p-temperature" class="field" type="number" min="0" max="2" step="0.1">
+        </label>
+        <label class="settings-field" style="flex:1">最大回复字数
+          <input id="p-maxtokens" class="field" type="number" min="1" max="8000">
+        </label>
+      </div>
+
+      <div class="settings-label">💬 人格设置</div>
+      <label class="settings-field">角色名
+        <input id="p-name" class="field" maxlength="30">
+      </label>
+      <label class="settings-field">系统提示词（AI 的说话风格）
+        <textarea id="p-systemprompt" class="field about-area" rows="4"></textarea>
+      </label>
+
+      <div class="settings-label">🫧 气泡（鼠标靠近冒出，几秒后消失）</div>
+      <label class="settings-field">启用气泡
+        <select id="p-bubble-enabled" class="field">
+          <option value="true">启用</option>
+          <option value="false">关闭</option>
+        </select>
+      </label>
+      <label class="settings-field">气泡文案（一行一条）
+        <textarea id="p-bubble-messages" class="field about-area" rows="5"></textarea>
+      </label>
+      <div class="nav-row">
+        <label class="settings-field" style="flex:1">触发距离（px）
+          <input id="p-bubble-distance" class="field" type="number" min="40" max="500">
+        </label>
+        <label class="settings-field" style="flex:1">显示时长（毫秒）
+          <input id="p-bubble-duration" class="field" type="number" min="500" max="20000">
+        </label>
+      </div>
+
+      <div class="settings-label">🛠 工具（AI 可调用的能力）</div>
+      <div class="nav-row">
+        <label class="switch"><input type="checkbox" id="p-tool-search"> <span>搜索博客文章</span></label>
+        <label class="switch"><input type="checkbox" id="p-tool-time"> <span>当前时间</span></label>
+      </div>
+
+      <div class="settings-label">🧩 MCP 接入（预留，需服务端环境，本期未启用）</div>
+      <label class="settings-field">启用
+        <select id="p-mcp-enabled" class="field">
+          <option value="false">未启用</option>
+          <option value="true">启用（预留）</option>
+        </select>
+      </label>
+      <label class="settings-field">外部 MCP 服务地址
+        <input id="p-mcp-url" class="field" placeholder="如 http://localhost:8080/mcp" maxlength="300">
+      </label>
+
+      <div class="settings-actions">
+        <button id="btn-save-pet" class="btn btn-primary" type="button">保存桌宠设置</button>
+        <span id="pet-status" class="editor-status"></span>
       </div>
     </div>
   </section>

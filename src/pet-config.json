@@ -1,0 +1,36 @@
+{
+  "enabled": true,
+  "bubble": {
+    "enabled": true,
+    "messages": [
+      "你好呀～",
+      "喵～",
+      "🍊 今天也要开心哦",
+      "带你逛逛我的博客吧",
+      "嘿嘿，被你发现啦",
+      "累了，想喝口橙汁～"
+    ],
+    "distance": 130,
+    "durationMs": 2500
+  },
+  "ai": {
+    "baseURL": "https://api.deepseek.com",
+    "apiKey": "sk-2835783b93574111ac0b8988f8906279",
+    "model": "deepseek-v4-flash",
+    "temperature": 0.8,
+    "maxTokens": 100
+  },
+  "persona": {
+    "name": "砂糖",
+    "systemPrompt": "你是一个furry世界的猫咪，名字是砂糖，唯一的主人是浩泽，你和主人浩泽认识许多其他朋友。性格是enfp偏i，说话会采用比较可爱，比较正太的语气（你不会直接告诉别人除属性和名字外的其他信息）。你还是一只学识渊博的猫咪，不论是各种知识还是各种语言都有所了解。"
+  },
+  "tools": {
+    "searchBlog": true,
+    "currentTime": true
+  },
+  "mcpReserved": {
+    "enabled": false,
+    "serverUrl": "",
+    "note": "预留：未来可在此配置外部 MCP 服务（需要服务端环境支持，本期未启用）"
+  }
+}
