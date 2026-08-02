@@ -22,7 +22,10 @@ app.use(express.json({ limit: '50mb' })); // 允许较大的文章（含 base64 
 app.use((req, _res, next) => {
   if (req.method !== 'GET') {
     console.log(`[${new Date().toLocaleString('zh-CN')}] ${req.method} ${req.originalUrl}`);
-    console.log(`    body: ${JSON.stringify(req.body ?? {})}`);
+    // 图片上传的 body 是超长 base64，不打日志
+    if (!req.originalUrl.startsWith('/api/uploads')) {
+      console.log(`    body: ${JSON.stringify(req.body ?? {})}`);
+    }
   }
   next();
 });
@@ -333,6 +336,162 @@ app.delete('/api/tags', (req, res) => {
     const safe = String(name || '').trim();
     const pool = readTagPool().filter((t) => t !== safe);
     writeTagPool(pool);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// ---------- API：站点设置 ----------
+// 站点全局配置（站点名/简介/首页文案/页脚/导航/关于页），存 src/site-config.json
+const SETTINGS_FILE = path.join(ROOT, 'src', 'site-config.json');
+
+const DEFAULT_SETTINGS = {
+  siteTitle: '浩泽的橘子窝',
+  siteDescription: '记录生活、学习与思考的小小橘子窝 🍊',
+  heroTitle: '🍊 欢迎来到浩泽的橘子窝',
+  heroSubtitle: '记录生活、学习与思考的小小橘子窝 🍊',
+  footerText: 'Powered By Astro',
+  navLinks: [
+    { href: 'tags', label: '标签' },
+    { href: 'categories', label: '分类' },
+    { href: 'search', label: '搜索' },
+    { href: 'about', label: '关于' },
+  ],
+  aboutBody: '<h1>👋 关于</h1>\n<p>你好，欢迎来到「浩泽的橘子窝」。</p>\n<p>这里是浩泽的个人博客，用来记录生活、学习与思考。希望这里的内容能给你带来一点启发，或是一点乐趣。</p>\n<h2>关于博客名</h2>\n<p>「橘子窝」来自橘子 🍊——平凡，但清甜。希望这个小站也能像橘子一样，朴素踏实，却总愿意给别人一点甜。</p>\n<h2>这里会写什么</h2>\n<ul>\n<li>生活随想</li>\n<li>学习笔记</li>\n<li>技术心得</li>\n</ul>\n<h2>关于这个博客</h2>\n<p>使用 <a href="https://astro.build" target="_blank" rel="noopener">Astro</a> 静态站点框架搭建，部署在 GitHub Pages。搭建过程记录在 <a href="{%base%}blog/build-blog-notes">这篇笔记</a> 里。</p>',
+};
+
+function readSettings() {
+  try {
+    const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+    return {
+      ...DEFAULT_SETTINGS,
+      ...data,
+      navLinks: Array.isArray(data.navLinks) ? data.navLinks : [...DEFAULT_SETTINGS.navLinks],
+    };
+  } catch {
+    return { ...DEFAULT_SETTINGS, navLinks: [...DEFAULT_SETTINGS.navLinks] };
+  }
+}
+
+// 逐字段校验与清洗：字符串截断、导航链接过滤非法字符，避免写入脏数据
+function sanitizeSettings(input) {
+  const b = input && typeof input === 'object' ? input : {};
+  const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const navLinks = Array.isArray(b.navLinks)
+    ? b.navLinks
+        .filter((n) => n && typeof n === 'object')
+        .map((n) => ({
+          href: String(n.href || '')
+            .trim()
+            .replace(/[<>"'`\\]/g, '')
+            .replace(/^\s*(javascript|data|vbscript):/i, '')
+            .slice(0, 80),
+          label: String(n.label || '').trim().replace(/[<>]/g, '').slice(0, 20),
+        }))
+        .filter((n) => n.href || n.label)
+        .slice(0, 12)
+    : [...DEFAULT_SETTINGS.navLinks];
+  return {
+    siteTitle: str(b.siteTitle, 100) || DEFAULT_SETTINGS.siteTitle,
+    siteDescription: str(b.siteDescription, 300) || DEFAULT_SETTINGS.siteDescription,
+    heroTitle: str(b.heroTitle, 100) || DEFAULT_SETTINGS.heroTitle,
+    heroSubtitle: str(b.heroSubtitle, 300) || DEFAULT_SETTINGS.heroSubtitle,
+    footerText: str(b.footerText, 200) || DEFAULT_SETTINGS.footerText,
+    navLinks,
+    aboutBody: typeof b.aboutBody === 'string' ? b.aboutBody : (DEFAULT_SETTINGS.aboutBody || ''),
+  };
+}
+
+app.get('/api/settings', (_req, res) => {
+  try {
+    res.json(readSettings());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/settings', (req, res) => {
+  try {
+    // 部分更新：没传的字段沿用现有配置，避免误清空
+    const existing = readSettings();
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    const merged = {
+      siteTitle: b.siteTitle !== undefined ? b.siteTitle : existing.siteTitle,
+      siteDescription: b.siteDescription !== undefined ? b.siteDescription : existing.siteDescription,
+      heroTitle: b.heroTitle !== undefined ? b.heroTitle : existing.heroTitle,
+      heroSubtitle: b.heroSubtitle !== undefined ? b.heroSubtitle : existing.heroSubtitle,
+      footerText: b.footerText !== undefined ? b.footerText : existing.footerText,
+      navLinks: b.navLinks !== undefined ? b.navLinks : existing.navLinks,
+      aboutBody: b.aboutBody !== undefined ? b.aboutBody : existing.aboutBody,
+    };
+    const out = sanitizeSettings(merged);
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(out, null, 2), 'utf-8');
+    res.json({ ok: true, settings: out });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// ---------- API：图片媒体库 ----------
+// 图片存 public/uploads/，正文用 `${base}uploads/文件名` 引用（root-relative，本地/线上都能访问）
+const UPLOAD_DIR = path.join(ROOT, 'public', 'uploads');
+const SAFE_IMG = /^[A-Za-z0-9_-]+\.(png|jpe?g|gif|webp)$/;
+const MIME_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+const DATAURL_RE = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/;
+
+function uploadUrl(name) {
+  return `${readBaseUrl()}uploads/${name}`;
+}
+
+// 静态服务图片：根路径 + base 前缀（后台编辑器里 `${base}uploads/xx.png` 直接能显示）
+app.use('/uploads', express.static(UPLOAD_DIR));
+const _base = readBaseUrl();
+if (_base && _base !== '/') {
+  app.use(_base.replace(/\/+$/, '') + '/uploads', express.static(UPLOAD_DIR));
+}
+
+app.get('/api/uploads', (_req, res) => {
+  try {
+    if (!fs.existsSync(UPLOAD_DIR)) return res.json([]);
+    const list = fs.readdirSync(UPLOAD_DIR)
+      .filter((f) => SAFE_IMG.test(f))
+      .map((name) => {
+        const st = fs.statSync(path.join(UPLOAD_DIR, name));
+        return { name, size: st.size, mtime: st.mtimeMs, url: uploadUrl(name) };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/uploads', (req, res) => {
+  try {
+    const data = String((req.body || {}).data || '');
+    const m = data.match(DATAURL_RE);
+    if (!m) throw badRequest('图片格式不支持，只支持 png / jpg / gif / webp');
+    const ext = MIME_EXT[m[1]] || 'png';
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 45 * 1024 * 1024) throw badRequest('图片太大（超过 45MB）');
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    // 服务端生成文件名，不信任客户端文件名，天然防目录穿越
+    const name = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    res.json({ ok: true, name, url: uploadUrl(name) });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/uploads', (req, res) => {
+  try {
+    const name = String((req.body || {}).name || '');
+    if (!SAFE_IMG.test(name)) throw badRequest('文件名不合法');
+    const full = path.join(UPLOAD_DIR, name);
+    if (!fs.existsSync(full)) return res.status(404).json({ error: '文件不存在' });
+    fs.rmSync(full);
     res.json({ ok: true });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });

@@ -106,6 +106,306 @@
     }
   }
 
+  // ---------- 图片大小 / 对齐（自定义 image handler + 浮动设置面板） ----------
+  const imgPanel = $('img-panel');
+  const imgWidth = $('img-width');
+  const imgWidthVal = $('img-width-val');
+  const imgAlignBtns = Array.from(document.querySelectorAll('.img-align button[data-align]'));
+  const imgDelBtn = $('img-del');
+  let currentImg = null; // 当前选中的 <img> DOM
+  let currentImgRange = null; // 对应的 Quill Range
+  let lastSel = null; // 最后一次光标位置（图片库「插入正文」用）
+
+  // 覆盖 Quill 默认图片插入：读本地文件 → base64 → 插入并选中 → 自动弹出设置面板
+  quill.getModule('toolbar').addHandler('image', () => {
+    const range = quill.getSelection(true);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const index = range && range.index != null ? range.index : quill.getLength();
+        quill.insertEmbed(index, 'image', reader.result, 'user');
+        quill.setSelection(index, 1, 'silent'); // 选中刚插入的图片 → 自动弹面板
+        updatePreview();
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  });
+
+  // 监听选区变化：选中的是单张图片时显示设置面板
+  // 注意：编辑器失焦（range 为 null）时保留面板，否则点滑块/按钮会让面板消失
+  quill.on('selection-change', (range) => {
+    lastSel = range;
+    if (!range) return;
+    if (range.length !== 1) { hideImgPanel(); return; }
+    const [leaf] = quill.getLeaf(range.index);
+    if (leaf && leaf.domNode && leaf.domNode.tagName === 'IMG') {
+      currentImg = leaf.domNode;
+      currentImgRange = range;
+      showImgPanel();
+      syncImgPanel();
+    } else {
+      hideImgPanel();
+    }
+  });
+
+  function showImgPanel() {
+    if (!currentImg) return;
+    const rect = currentImg.getBoundingClientRect();
+    if (!rect || (!rect.width && !rect.height)) { imgPanel.classList.add('hidden'); return; }
+    imgPanel.classList.remove('hidden');
+    requestAnimationFrame(() => positionImgPanel(rect));
+  }
+
+  function positionImgPanel(rect) {
+    imgPanel.classList.remove('hidden');
+    const w = imgPanel.offsetWidth;
+    const h = imgPanel.offsetHeight;
+    let left = rect.left + rect.width / 2 - w / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    let top = rect.top - h - 10;
+    if (top < 8) top = rect.bottom + 10;
+    imgPanel.style.left = left + 'px';
+    imgPanel.style.top = top + 'px';
+  }
+
+  function hideImgPanel() {
+    imgPanel.classList.add('hidden');
+    currentImg = null;
+    currentImgRange = null;
+  }
+
+  function syncImgPanel() {
+    if (!currentImg) return;
+    const w = parseFloat(currentImg.getAttribute('width')) || 100;
+    imgWidth.value = w;
+    imgWidthVal.textContent = w + '%';
+    const p = currentImg.closest('p');
+    const alignClass = p
+      ? (p.classList.contains('ql-align-right') ? 'right'
+        : p.classList.contains('ql-align-center') ? 'center' : 'left')
+      : 'left';
+    imgAlignBtns.forEach((b) => b.classList.toggle('active', b.dataset.align === alignClass));
+  }
+
+  imgWidth.addEventListener('input', () => {
+    if (!currentImg) return;
+    const v = Number(imgWidth.value);
+    imgWidthVal.textContent = v + '%';
+    quill.format('width', v + '%', 'user'); // 内置 Image blot → <img width="v%">
+    updatePreview();
+  });
+
+  imgAlignBtns.forEach((b) => {
+    b.addEventListener('click', () => {
+      if (!currentImg) return;
+      const align = b.dataset.align;
+      quill.format('align', align === 'left' ? false : align, 'user'); // 左对齐 = 移除格式
+      syncImgPanel();
+    });
+  });
+
+  imgDelBtn.addEventListener('click', () => {
+    if (!currentImg || !currentImgRange) return;
+    quill.deleteText(currentImgRange.index, 1, 'user');
+    hideImgPanel();
+    updatePreview();
+  });
+
+  // 编辑区滚动 / 窗口缩放时跟随图片重新定位
+  window.addEventListener('scroll', () => {
+    if (imgPanel.classList.contains('hidden') || !currentImg) return;
+    positionImgPanel(currentImg.getBoundingClientRect());
+  }, true);
+  window.addEventListener('resize', () => {
+    if (imgPanel.classList.contains('hidden') || !currentImg) return;
+    positionImgPanel(currentImg.getBoundingClientRect());
+  });
+
+  // ---------- 标签页切换（文章 / 图片库 / 站点设置） ----------
+  function switchPanel(name) {
+    ['posts', 'media', 'settings'].forEach((p) => {
+      $('panel-' + p).classList.toggle('hidden', p !== name);
+    });
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.panel === name));
+    if (name === 'posts') showEditor(!!current);
+    if (name === 'media') loadMedia();
+    if (name === 'settings') loadSettings();
+  }
+  document.querySelectorAll('.tab').forEach((t) => {
+    t.addEventListener('click', () => switchPanel(t.dataset.panel));
+  });
+
+  // ---------- 图片媒体库 ----------
+  async function loadMedia() {
+    try {
+      renderMedia(await api('/api/uploads'));
+    } catch (e) {
+      toast('加载图片库失败：' + e.message, true);
+    }
+  }
+
+  function renderMedia(list) {
+    const grid = $('media-grid');
+    if (!list.length) {
+      grid.innerHTML = `<p class="media-empty">还没有图片，点上方「＋ 上传图片」试试。</p>`;
+      return;
+    }
+    grid.innerHTML = list.map((item) => `
+      <div class="media-card" data-name="${escapeHtml(item.name)}">
+        <img src="${item.url}" alt="${escapeHtml(item.name)}" loading="lazy">
+        <div class="media-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+        <div class="media-actions">
+          <button class="btn btn-mini" data-act="copy" type="button">复制链接</button>
+          <button class="btn btn-mini" data-act="insert" type="button">插入正文</button>
+          <button class="btn btn-mini danger" data-act="del" type="button">删除</button>
+        </div>
+      </div>`).join('');
+    grid.querySelectorAll('.media-card').forEach((card) => {
+      const name = card.dataset.name;
+      card.querySelector('[data-act="copy"]').addEventListener('click', () => copyMediaUrl(name));
+      card.querySelector('[data-act="insert"]').addEventListener('click', () => insertMediaIntoPost(item.url));
+      card.querySelector('[data-act="del"]').addEventListener('click', () => deleteMedia(name));
+    });
+  }
+
+  async function copyMediaUrl(name) {
+    try {
+      const list = await api('/api/uploads');
+      const item = list.find((u) => u.name === name);
+      if (!item) { toast('图片不存在，可能已被删除', true); return; }
+      await navigator.clipboard.writeText(item.url);
+      toast('已复制链接，可粘进正文或别处');
+    } catch (e) {
+      toast('复制失败：' + e.message, true);
+    }
+  }
+
+  function insertMediaIntoPost(url) {
+    if (!current) {
+      toast('请先打开或新建一篇文章，再插入图片', true);
+      switchPanel('posts');
+      return;
+    }
+    switchPanel('posts');
+    const range = lastSel && lastSel.index != null ? lastSel : quill.getSelection();
+    const index = range && range.index != null ? range.index : quill.getLength();
+    quill.insertEmbed(index, 'image', url, 'user');
+    quill.setSelection(index, 1, 'silent');
+    updatePreview();
+    toast('已插入正文，可选中图片调整宽度和对齐');
+  }
+
+  async function deleteMedia(name) {
+    if (!confirm(`确定删除图片「${name}」吗？已在文章里引用的图会失效。`)) return;
+    try {
+      await api('/api/uploads', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      toast('已删除');
+      await loadMedia();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  $('media-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 45 * 1024 * 1024) { toast('图片太大（超过 45MB）', true); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await api('/api/uploads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: reader.result }),
+        });
+        toast('上传成功 ✅');
+        await loadMedia();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 允许重复选择同一个文件
+  });
+
+  // ---------- 站点设置 ----------
+  async function loadSettings() {
+    try {
+      const s = await api('/api/settings');
+      $('s-site-title').value = s.siteTitle || '';
+      $('s-site-desc').value = s.siteDescription || '';
+      $('s-hero-title').value = s.heroTitle || '';
+      $('s-hero-subtitle').value = s.heroSubtitle || '';
+      $('s-footer-text').value = s.footerText || '';
+      $('s-about-body').value = s.aboutBody || '';
+      renderNavLinkRows(s.navLinks || []);
+    } catch (e) {
+      toast('加载设置失败：' + e.message, true);
+    }
+  }
+
+  function renderNavLinkRows(links) {
+    const box = $('s-nav-links');
+    box.innerHTML = '';
+    const rows = Array.isArray(links) && links.length ? links : [{ href: '', label: '' }];
+    rows.forEach((n) => {
+      const row = document.createElement('div');
+      row.className = 'nav-row';
+      row.innerHTML = `
+        <input class="field nav-href" placeholder="地址（如 tags、about，或完整网址）" maxlength="80" value="${escapeHtml(n.href || '')}">
+        <input class="field nav-label" placeholder="名称（如 标签）" maxlength="20" value="${escapeHtml(n.label || '')}">
+        <button class="nav-del" type="button" title="删除此行">×</button>`;
+      row.querySelector('.nav-del').addEventListener('click', () => row.remove());
+      box.appendChild(row);
+    });
+  }
+
+  function collectNavRows() {
+    return Array.from(document.querySelectorAll('#s-nav-links .nav-row')).map((row) => ({
+      href: row.querySelector('.nav-href').value.trim(),
+      label: row.querySelector('.nav-label').value.trim(),
+    })).filter((n) => n.href || n.label);
+  }
+
+  $('btn-add-nav').addEventListener('click', () => renderNavLinkRows([{ href: '', label: '' }, ...collectNavRows()]));
+
+  $('btn-save-settings').addEventListener('click', async () => {
+    const body = {
+      siteTitle: $('s-site-title').value.trim(),
+      siteDescription: $('s-site-desc').value.trim(),
+      heroTitle: $('s-hero-title').value.trim(),
+      heroSubtitle: $('s-hero-subtitle').value.trim(),
+      footerText: $('s-footer-text').value.trim(),
+      navLinks: collectNavRows(),
+      aboutBody: $('s-about-body').value,
+    };
+    const btn = $('btn-save-settings');
+    btn.disabled = true;
+    try {
+      await api('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      $('settings-status').textContent = '已保存 ✅（记得点「发布到网上」生效）';
+      toast('设置已保存');
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---------- 加载数据 ----------
   async function loadData() {
     try {

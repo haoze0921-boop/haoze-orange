@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import PostCard from '../components/PostCard.astro';
 import { getVisiblePosts, sortPosts } from '../lib/posts';
-import { SITE_DESCRIPTION } from '../consts';
+import { HERO_TITLE, HERO_SUBTITLE } from '../consts';
 
 // 首页：置顶在前，其余按日期倒序；隐藏文章不显示
 const posts = sortPosts(await getVisiblePosts());
@@ -10,8 +10,8 @@ const posts = sortPosts(await getVisiblePosts());
 
 <Base title="首页">
   <section class="hero">
-    <h1>🍊 欢迎来到浩泽的橘子窝</h1>
-    <p>{SITE_DESCRIPTION}</p>
+    <h1>{HERO_TITLE}</h1>
+    <p>{HERO_SUBTITLE}</p>
   </section>
 
   <h2 class="section-title">📝 最新文章</h2>

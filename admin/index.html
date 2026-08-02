@@ -20,8 +20,15 @@
     </div>
   </header>
 
-  <div class="layout">
-    <aside class="sidebar">
+  <nav class="tabs">
+    <button class="tab active" data-panel="posts" type="button">📝 文章</button>
+    <button class="tab" data-panel="media" type="button">🖼 图片库</button>
+    <button class="tab" data-panel="settings" type="button">⚙️ 站点设置</button>
+  </nav>
+
+  <section id="panel-posts">
+    <div class="layout">
+      <aside class="sidebar">
       <button id="btn-new" class="btn btn-primary btn-block">＋ 新建文章</button>
       <input id="search" class="search" type="search" placeholder="搜索文章…" autocomplete="off">
       <div id="post-list" class="post-list"></div>
@@ -39,15 +46,13 @@
       <div id="editor-form" class="editor-form hidden">
         <input id="f-title" class="field-title" placeholder="文章标题" autocomplete="off">
         <input id="f-description" class="field" placeholder="一句话简介（选填）" autocomplete="off">
-        <div class="field-row">
+        <div class="field-row meta-row">
           <label>日期
             <input id="f-date" class="field" type="date">
           </label>
           <label>目录
             <select id="f-dir" class="field"></select>
           </label>
-        </div>
-        <div class="field-row field-switches">
           <label class="switch" title="置顶文章在首页和列表里排最前">
             <input type="checkbox" id="f-pinned"> <span>📌 置顶</span>
           </label>
@@ -81,6 +86,7 @@
             </select>
             <select class="ql-color" title="字体颜色"></select>
             <select class="ql-background" title="高亮背景"></select>
+            <select class="ql-align" title="对齐"></select>
             <button class="ql-list" value="ordered" title="有序列表"></button>
             <button class="ql-list" value="bullet" title="无序列表"></button>
             <button class="ql-blockquote" title="引用"></button>
@@ -103,10 +109,70 @@
           <span id="editor-status" class="editor-status"></span>
         </div>
       </div>
-    </main>
-  </div>
+      </main>
+    </div>
+  </section>
+
+  <section id="panel-media" class="panel hidden">
+    <div class="panel-head">
+      <h2>🖼 图片媒体库</h2>
+      <p class="panel-tip">图片会存到服务器的 <code>public/uploads/</code>。上传后可「复制链接」或「插入正文」，插入用的是带站点前缀的链接，本地预览和线上都能显示。</p>
+      <label class="btn btn-primary upload-btn">＋ 上传图片
+        <input id="media-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+      </label>
+    </div>
+    <div id="media-grid" class="media-grid"></div>
+  </section>
+
+  <section id="panel-settings" class="panel hidden">
+    <div class="panel-head">
+      <h2>⚙️ 站点设置</h2>
+      <p class="panel-tip">修改后点顶部「发布到网上」，改动就会生效到网站（导航、页脚、首页文案、关于页）。</p>
+    </div>
+    <div class="settings-form">
+      <label class="settings-field">站点名称
+        <input id="s-site-title" class="field" maxlength="100">
+      </label>
+      <label class="settings-field">站点简介
+        <input id="s-site-desc" class="field" maxlength="300">
+      </label>
+      <label class="settings-field">首页大标题
+        <input id="s-hero-title" class="field" maxlength="100">
+      </label>
+      <label class="settings-field">首页副标题
+        <input id="s-hero-subtitle" class="field" maxlength="300">
+      </label>
+      <label class="settings-field">页脚文字（显示为「© 年份 站点名 · 这里的内容」）
+        <input id="s-footer-text" class="field" maxlength="200">
+      </label>
+      <div class="settings-label">导航链接（「首页」固定在最前）</div>
+      <div id="s-nav-links" class="nav-links"></div>
+      <button id="btn-add-nav" class="btn btn-mini" type="button" style="align-self:flex-start">＋ 添加导航</button>
+      <label class="settings-field">关于页内容（支持 HTML；站内链接可用 {%base%} 占位符）
+        <textarea id="s-about-body" class="field about-area" rows="12"></textarea>
+      </label>
+      <div class="settings-actions">
+        <button id="btn-save-settings" class="btn btn-primary" type="button">保存设置</button>
+        <span id="settings-status" class="editor-status"></span>
+      </div>
+    </div>
+  </section>
 
   <div id="toast" class="toast hidden"></div>
+
+  <div id="img-panel" class="img-panel hidden">
+    <label class="img-width" title="调整图片宽度">
+      <span>宽度</span>
+      <input id="img-width" type="range" min="25" max="100" step="5" value="100">
+      <span id="img-width-val">100%</span>
+    </label>
+    <span class="img-align" title="图片位置">
+      <button type="button" data-align="left" title="左对齐">⬅ 左</button>
+      <button type="button" data-align="center" title="居中">↔ 中</button>
+      <button type="button" data-align="right" title="右对齐">➡ 右</button>
+    </span>
+    <button type="button" id="img-del" class="img-del" title="删除这张图片">🗑 删除</button>
+  </div>
 
   <div id="publish-modal" class="modal hidden">
     <div class="modal-box">
