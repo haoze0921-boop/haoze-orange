@@ -24,7 +24,7 @@ const PET = petConfig;
   </div>
 </div>
 
-<script is:inline type="application/json" id="pet-config">{JSON.stringify(PET).replace(/</g, '\\u003c')}</script>
+<script is:inline type="application/json" id="pet-config" set:html={JSON.stringify(PET).replace(/</g, '\\u003c')}></script>
 
 <style>
   .pet-wrap {
