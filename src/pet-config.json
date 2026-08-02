@@ -11,14 +11,14 @@
       "累了，想喝口橙汁～"
     ],
     "distance": 130,
-    "durationMs": 500
+    "durationMs": 5000
   },
   "ai": {
     "baseURL": "https://api.deepseek.com",
     "apiKey": "sk-2835783b93574111ac0b8988f8906279",
     "model": "deepseek-v4-flash",
     "temperature": 0.8,
-    "maxTokens": 100
+    "maxTokens": 200
   },
   "persona": {
     "name": "砂糖",
