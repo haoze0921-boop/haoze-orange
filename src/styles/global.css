@@ -302,6 +302,37 @@ a:hover {
   margin: 1.25rem 0;
 }
 
+/* 标签云按钮（可点击筛选） */
+.tag-cloud-pill {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.75rem;
+  border: none;
+  cursor: pointer;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-radius: 999px;
+  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out),
+    transform 0.16s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tag-cloud-pill:hover {
+    background: var(--accent);
+    color: #fff;
+  }
+}
+
+.tag-cloud-pill.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tag-cloud-pill .tag-count {
+  opacity: 0.75;
+  font-size: 0.75em;
+}
+
 /* ============================================================
    文章正文（.prose）
    ============================================================ */

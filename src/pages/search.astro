@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro';
 
 <Base title="搜索">
   <h1>🔍 搜索文章</h1>
-  <p class="post-excerpt">按标题、简介、标签和正文内容搜索。</p>
+  <p class="post-excerpt">按标题、简介、标签和正文内容搜索；也可以点下面的标签，浏览同标签的文章。</p>
 
   <input
     id="search-input"
@@ -13,7 +13,8 @@ import Base from '../layouts/Base.astro';
     placeholder="输入关键词，如：博客 / Astro / 生活"
     autocomplete="off"
   />
-  <p id="search-status" class="search-status">输入关键词开始搜索…</p>
+  <div id="tag-cloud" class="tag-cloud" aria-label="按标签浏览"></div>
+  <p id="search-status" class="search-status">加载中…</p>
   <div id="search-results" class="post-list"></div>
 
   <script>
@@ -21,6 +22,7 @@ import Base from '../layouts/Base.astro';
     const input = document.getElementById('search-input') as HTMLInputElement;
     const status = document.getElementById('search-status') as HTMLElement;
     const results = document.getElementById('search-results') as HTMLElement;
+    const cloud = document.getElementById('tag-cloud') as HTMLElement;
 
     let index: Array<{
       title: string;
@@ -30,19 +32,31 @@ import Base from '../layouts/Base.astro';
       slug: string;
       body: string;
     }> = [];
+    let activeTag = readTagFromUrl();
 
-    // 拉取构建时生成的索引
-    fetch(`${base}search-index.json`)
-      .then((r) => r.json())
-      .then((data) => {
-        index = data;
-      })
-      .catch(() => {
-        status.textContent = '索引加载失败，请刷新页面重试 🍊';
-      });
+    function readTagFromUrl(): string {
+      return new URLSearchParams(window.location.search).get('tag') || '';
+    }
+
+    // 属性转义（data-tag / 标签文案）
+    function esc(s: string): string {
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    // 从 Markdown 源码里去掉符号，保留可读正文片段（用于搜索匹配与摘要）
+    function plainText(md: string): string {
+      return md
+        .replace(/<[^>]+>/g, ' ') // HTML 标签
+        .replace(/```[\s\S]*?```/g, ' ') // 代码块
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // 图片
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // 链接只留文字
+        .replace(/[#>*`\-_~|]/g, ' ')
+        .replace(/\s+/g, ' ');
+    }
 
     // 把命中的关键字包上 <mark> 高亮
     function highlight(text: string, keyword: string): string {
+      if (!keyword) return text;
       const i = text.toLowerCase().indexOf(keyword.toLowerCase());
       if (i === -1) return text;
       return (
@@ -54,40 +68,59 @@ import Base from '../layouts/Base.astro';
       );
     }
 
-    // 从 Markdown 源码里去掉符号，保留可读正文片段（用于搜索匹配与摘要）
-    function plainText(md: string): string {
-      return md
-        .replace(/<[^>]+>/g, ' ') // HTML 标签（富文本编辑器保存的内容）
-        .replace(/```[\s\S]*?```/g, ' ') // 代码块
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // 图片
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // 链接只留文字
-        .replace(/[#>*`\-_~|]/g, ' ')
-        .replace(/\s+/g, ' ');
+    // 标签云：聚合全部标签与数量，点按切换筛选
+    function renderCloud() {
+      const map = new Map<string, number>();
+      index.forEach((item) => (item.tags || []).forEach((t) => map.set(t, (map.get(t) || 0) + 1)));
+      const sorted = [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
+      if (!sorted.length) { cloud.innerHTML = ''; return; }
+      cloud.innerHTML = sorted
+        .map(([t, c]) => {
+          const on = t === activeTag ? ' selected' : '';
+          return `<button class="tag-pill tag-cloud-pill${on}" type="button" data-tag="${esc(t)}">#${esc(t)} <span class="tag-count">${c}</span></button>`;
+        })
+        .join('');
+      cloud.querySelectorAll('.tag-cloud-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          // 再点已选中的标签 → 取消选择
+          activeTag = btn.dataset.tag === activeTag ? '' : (btn.dataset.tag || '');
+          const url = new URL(window.location.href);
+          if (activeTag) url.searchParams.set('tag', activeTag);
+          else url.searchParams.delete('tag');
+          history.pushState({}, '', url);
+          renderCloud();
+          render();
+        });
+      });
     }
 
-    input.addEventListener('input', () => {
-      const keyword = input.value.trim();
-      if (!keyword) {
-        status.textContent = '输入关键词开始搜索…';
+    // 联合过滤：关键词 + 标签
+    function render() {
+      const keyword = input.value.trim().toLowerCase();
+      const matches = index.filter((item) => {
+        const text = [item.title, item.description, item.tags.join(' '), plainText(item.body)]
+          .join(' ')
+          .toLowerCase();
+        const hitKw = !keyword || text.includes(keyword);
+        const hitTag = !activeTag || (item.tags || []).includes(activeTag);
+        return hitKw && hitTag;
+      });
+
+      if (!keyword && !activeTag) {
+        status.textContent = '输入关键词，或点上面的标签浏览文章';
         results.innerHTML = '';
         return;
       }
 
-      const k = keyword.toLowerCase();
-      const matches = index.filter((item) =>
-        [item.title, item.description, item.tags.join(' '), plainText(item.body)]
-          .join(' ')
-          .toLowerCase()
-          .includes(k)
-      );
+      if (activeTag && keyword) status.textContent = `标签「${activeTag}」下，找到 ${matches.length} 篇含「${keyword}」的文章`;
+      else if (activeTag) status.textContent = `标签「${activeTag}」下共有 ${matches.length} 篇文章`;
+      else status.textContent = matches.length ? `找到 ${matches.length} 篇相关文章` : `没有找到与「${keyword}」相关的文章 🍊`;
 
       if (matches.length === 0) {
-        status.textContent = `没有找到与「${keyword}」相关的文章 🍊`;
-        results.innerHTML = '';
+        results.innerHTML = '<p class="post-excerpt">没有匹配的文章 🍊</p>';
         return;
       }
 
-      status.textContent = `找到 ${matches.length} 篇相关文章`;
       results.innerHTML = matches
         .map((item) => {
           const desc = item.description || plainText(item.body).slice(0, 90);
@@ -99,17 +132,34 @@ import Base from '../layouts/Base.astro';
               </a>
               <div class="post-card-meta">
                 <time>${item.date}</time>
-                ${item.tags
-                  .map(
-                    (t) =>
-                      `<a class="tag-pill" href="${base}tags/${encodeURIComponent(t)}">#${t}</a>`
-                  )
+                ${(item.tags || [])
+                  .map((t) => `<a class="tag-pill" href="${base}search?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`)
                   .join('')}
               </div>
             </article>
           `;
         })
         .join('');
+    }
+
+    input.addEventListener('input', render);
+
+    fetch(`${base}search-index.json`)
+      .then((r) => r.json())
+      .then((data) => {
+        index = data;
+        renderCloud();
+        render();
+      })
+      .catch(() => {
+        status.textContent = '索引加载失败，请刷新页面重试 🍊';
+      });
+
+    // 支持浏览器后退/前进时更新 ?tag=
+    window.addEventListener('popstate', () => {
+      activeTag = readTagFromUrl();
+      renderCloud();
+      render();
     });
   </script>
 </Base>

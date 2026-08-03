@@ -239,7 +239,26 @@ const PET = petConfig;
       wrap.style.right = 'auto';
       wrap.style.bottom = 'auto';
     }
-    applyDefaultPos();
+    // 记住桌宠位置：跨页面保持一致（sessionStorage，同一标签页内有效）
+    const POS_KEY = 'orange-pet-pos';
+    function savePos() {
+      try { sessionStorage.setItem(POS_KEY, JSON.stringify({ x, y })); } catch { /* 忽略 */ }
+    }
+    function loadPos() {
+      try {
+        const p = JSON.parse(sessionStorage.getItem(POS_KEY) || 'null');
+        if (p && typeof p.x === 'number' && typeof p.y === 'number') {
+          x = p.x; y = p.y;
+          wrap.style.left = x + 'px';
+          wrap.style.top = y + 'px';
+          wrap.style.right = 'auto';
+          wrap.style.bottom = 'auto';
+          return true;
+        }
+      } catch { /* 忽略 */ }
+      return false;
+    }
+    if (!loadPos()) applyDefaultPos();
     if (!img.complete) img.addEventListener('load', applyDefaultPos);
 
     // ---------- 拖拽 + 单击 ----------
@@ -270,6 +289,8 @@ const PET = petConfig;
       if (!moved) {
         playOnce('jumping');
         openChat();
+      } else {
+        savePos(); // 拖到新位置后记住
       }
     }
     function playOnce(cls) {
@@ -434,18 +455,36 @@ const PET = petConfig;
     }
 
     let history = [];
+    // 会话持久化：跨页面保留聊天记录（sessionStorage，关掉标签页后清空）
+    const CHAT_KEY = 'orange-pet-chat';
+    function saveChat() {
+      try { sessionStorage.setItem(CHAT_KEY, JSON.stringify(history.slice(-30))); } catch { /* 忽略 */ }
+    }
+    function loadChat() {
+      try {
+        const arr = JSON.parse(sessionStorage.getItem(CHAT_KEY) || 'null');
+        if (Array.isArray(arr)) {
+          history = arr.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string');
+          history.forEach((m) => appendMsg(m.role, m.content));
+        }
+      } catch { history = []; }
+    }
+    loadChat();
+
     async function sendMessage() {
       const text = chatInput.value.trim();
       if (!text) return;
       chatInput.value = '';
       appendMsg('user', text);
       history.push({ role: 'user', content: text });
+      saveChat();
       const thinking = appendMsg('thinking', '正在想…');
       chatSend.disabled = true;
       const reply = await callAI(history);
       thinking.remove();
       appendMsg('ai', reply);
       history.push({ role: 'assistant', content: reply });
+      saveChat();
       chatSend.disabled = false;
       chatInput.focus();
     }
@@ -463,6 +502,7 @@ const PET = petConfig;
       y = Math.min(y, window.innerHeight - 40);
       wrap.style.left = x + 'px';
       wrap.style.top = y + 'px';
+      savePos();
     });
   })();
 </script>

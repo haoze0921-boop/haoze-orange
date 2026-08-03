@@ -6,10 +6,6 @@
   "footerText": "Powered By Astro",
   "navLinks": [
     {
-      "href": "tags",
-      "label": "标签"
-    },
-    {
       "href": "categories",
       "label": "分类"
     },

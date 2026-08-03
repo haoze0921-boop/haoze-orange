@@ -42,7 +42,7 @@ const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
         }
         {
           post.data.tags.map((tag) => (
-            <a class="tag-pill" href={`${base}tags/${encodeURIComponent(tag)}`}>
+            <a class="tag-pill" href={`${base}search?tag=${encodeURIComponent(tag)}`}>
               #{tag}
             </a>
           ))
