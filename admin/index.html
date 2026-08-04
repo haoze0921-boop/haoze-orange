@@ -22,7 +22,6 @@
 
   <nav class="tabs">
     <button class="tab active" data-panel="posts" type="button">📝 文章</button>
-    <button class="tab" data-panel="media" type="button">🖼 图片库</button>
     <button class="tab" data-panel="settings" type="button">⚙️ 站点设置</button>
     <button class="tab" data-panel="pet" type="button">🐱 桌宠</button>
     <button class="tab" data-panel="links" type="button">🔖 网站收集</button>
@@ -113,17 +112,6 @@
       </div>
       </main>
     </div>
-  </section>
-
-  <section id="panel-media" class="panel hidden">
-    <div class="panel-head">
-      <h2>🖼 图片媒体库</h2>
-      <p class="panel-tip">图片会存到服务器的 <code>public/uploads/</code>。上传后可「复制链接」或「插入正文」，插入用的是带站点前缀的链接，本地预览和线上都能显示。</p>
-      <label class="btn btn-primary upload-btn">＋ 上传图片
-        <input id="media-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
-      </label>
-    </div>
-    <div id="media-grid" class="media-grid"></div>
   </section>
 
   <section id="panel-settings" class="panel hidden">

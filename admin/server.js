@@ -22,10 +22,7 @@ app.use(express.json({ limit: '50mb' })); // 允许较大的文章（含 base64 
 app.use((req, _res, next) => {
   if (req.method !== 'GET') {
     console.log(`[${new Date().toLocaleString('zh-CN')}] ${req.method} ${req.originalUrl}`);
-    // 图片上传的 body 是超长 base64，不打日志
-    if (!req.originalUrl.startsWith('/api/uploads')) {
-      console.log(`    body: ${JSON.stringify(req.body ?? {})}`);
-    }
+    console.log(`    body: ${JSON.stringify(req.body ?? {})}`);
   }
   next();
 });
@@ -428,71 +425,6 @@ app.put('/api/settings', (req, res) => {
     const out = sanitizeSettings(merged);
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(out, null, 2), 'utf-8');
     res.json({ ok: true, settings: out });
-  } catch (e) {
-    res.status(e.status || 500).json({ error: e.message });
-  }
-});
-
-// ---------- API：图片媒体库 ----------
-// 图片存 public/uploads/，正文用 `${base}uploads/文件名` 引用（root-relative，本地/线上都能访问）
-const UPLOAD_DIR = path.join(ROOT, 'public', 'uploads');
-const SAFE_IMG = /^[A-Za-z0-9_-]+\.(png|jpe?g|gif|webp)$/;
-const MIME_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
-const DATAURL_RE = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/;
-
-function uploadUrl(name) {
-  return `${readBaseUrl()}uploads/${name}`;
-}
-
-// 静态服务图片：根路径 + base 前缀（后台编辑器里 `${base}uploads/xx.png` 直接能显示）
-app.use('/uploads', express.static(UPLOAD_DIR));
-const _base = readBaseUrl();
-if (_base && _base !== '/') {
-  app.use(_base.replace(/\/+$/, '') + '/uploads', express.static(UPLOAD_DIR));
-}
-
-app.get('/api/uploads', (_req, res) => {
-  try {
-    if (!fs.existsSync(UPLOAD_DIR)) return res.json([]);
-    const list = fs.readdirSync(UPLOAD_DIR)
-      .filter((f) => SAFE_IMG.test(f))
-      .map((name) => {
-        const st = fs.statSync(path.join(UPLOAD_DIR, name));
-        return { name, size: st.size, mtime: st.mtimeMs, url: uploadUrl(name) };
-      })
-      .sort((a, b) => b.mtime - a.mtime);
-    res.json(list);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/uploads', (req, res) => {
-  try {
-    const data = String((req.body || {}).data || '');
-    const m = data.match(DATAURL_RE);
-    if (!m) throw badRequest('图片格式不支持，只支持 png / jpg / gif / webp');
-    const ext = MIME_EXT[m[1]] || 'png';
-    const buf = Buffer.from(m[2], 'base64');
-    if (buf.length > 45 * 1024 * 1024) throw badRequest('图片太大（超过 45MB）');
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    // 服务端生成文件名，不信任客户端文件名，天然防目录穿越
-    const name = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
-    res.json({ ok: true, name, url: uploadUrl(name) });
-  } catch (e) {
-    res.status(e.status || 500).json({ error: e.message });
-  }
-});
-
-app.delete('/api/uploads', (req, res) => {
-  try {
-    const name = String((req.body || {}).name || '');
-    if (!SAFE_IMG.test(name)) throw badRequest('文件名不合法');
-    const full = path.join(UPLOAD_DIR, name);
-    if (!fs.existsSync(full)) return res.status(404).json({ error: '文件不存在' });
-    fs.rmSync(full);
-    res.json({ ok: true });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

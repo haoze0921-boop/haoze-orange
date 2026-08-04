@@ -128,7 +128,6 @@
   const imgDelBtn = $('img-del');
   let currentImg = null; // 当前选中的 <img> DOM
   let currentImgRange = null; // 对应的 Quill Range
-  let lastSel = null; // 最后一次光标位置（图片库「插入正文」用）
 
   // 覆盖 Quill 默认图片插入：读本地文件 → base64 → 插入并选中 → 自动弹出设置面板
   quill.getModule('toolbar').addHandler('image', () => {
@@ -154,7 +153,6 @@
   // 监听选区变化：选中的是单张图片时显示设置面板
   // 注意：编辑器失焦（range 为 null）时保留面板，否则点滑块/按钮会让面板消失
   quill.on('selection-change', (range) => {
-    lastSel = range;
     if (!range) return;
     if (range.length !== 1) { hideImgPanel(); return; }
     const [leaf] = quill.getLeaf(range.index);
@@ -241,122 +239,19 @@
     positionImgPanel(currentImg.getBoundingClientRect());
   });
 
-  // ---------- 标签页切换（文章 / 图片库 / 站点设置 / 桌宠 / 网站收集） ----------
+  // ---------- 标签页切换（文章 / 站点设置 / 桌宠 / 网站收集） ----------
   function switchPanel(name) {
-    ['posts', 'media', 'settings', 'pet', 'links'].forEach((p) => {
+    ['posts', 'settings', 'pet', 'links'].forEach((p) => {
       $('panel-' + p).classList.toggle('hidden', p !== name);
     });
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.panel === name));
     if (name === 'posts') showEditor(!!current);
-    if (name === 'media') loadMedia();
     if (name === 'settings') loadSettings();
     if (name === 'pet') loadPet();
     if (name === 'links') loadLinks();
   }
   document.querySelectorAll('.tab').forEach((t) => {
     t.addEventListener('click', () => switchPanel(t.dataset.panel));
-  });
-
-  // ---------- 图片媒体库 ----------
-  async function loadMedia() {
-    try {
-      renderMedia(await api('/api/uploads'));
-    } catch (e) {
-      toast('加载图片库失败：' + e.message, true);
-    }
-  }
-
-  function renderMedia(list) {
-    const grid = $('media-grid');
-    if (!list.length) {
-      grid.innerHTML = `<p class="media-empty">还没有图片，点上方「＋ 上传图片」试试。</p>`;
-      return;
-    }
-    grid.innerHTML = list.map((item) => `
-      <div class="media-card" data-name="${escapeHtml(item.name)}">
-        <img src="${item.url}" alt="${escapeHtml(item.name)}" loading="lazy">
-        <div class="media-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-        <div class="media-actions">
-          <button class="btn btn-mini" data-act="copy" type="button">复制链接</button>
-          <button class="btn btn-mini" data-act="insert" type="button">插入正文</button>
-          <button class="btn btn-mini danger" data-act="del" type="button">删除</button>
-        </div>
-      </div>`).join('');
-    grid.querySelectorAll('.media-card').forEach((card) => {
-      const name = card.dataset.name;
-      card.querySelector('[data-act="copy"]').addEventListener('click', () => copyMediaUrl(name));
-      card.querySelector('[data-act="insert"]').addEventListener('click', () => insertMediaIntoPost(item.url));
-      card.querySelector('[data-act="del"]').addEventListener('click', () => deleteMedia(name));
-    });
-  }
-
-  async function copyMediaUrl(name) {
-    try {
-      const list = await api('/api/uploads');
-      const item = list.find((u) => u.name === name);
-      if (!item) { toast('图片不存在，可能已被删除', true); return; }
-      await navigator.clipboard.writeText(item.url);
-      toast('已复制链接，可粘进正文或别处');
-    } catch (e) {
-      toast('复制失败：' + e.message, true);
-    }
-  }
-
-  function insertMediaIntoPost(url) {
-    if (!current) {
-      toast('请先打开或新建一篇文章，再回来插入图片', true);
-      switchPanel('posts');
-      $('btn-new').focus();
-      return;
-    }
-    switchPanel('posts');
-    // 等编辑器显示出来再插入，确保能看到
-    requestAnimationFrame(() => {
-      const range = lastSel && lastSel.index != null ? lastSel : quill.getSelection(true);
-      const index = range && range.index != null ? range.index : quill.getLength();
-      quill.insertEmbed(index, 'image', url, 'user');
-      quill.setSelection(index + 1, 0, 'silent');
-      updatePreview();
-      toast('已插入图片，可选中它调整宽度和对齐');
-      quill.focus();
-    });
-  }
-
-  async function deleteMedia(name) {
-    if (!confirm(`确定删除图片「${name}」吗？已在文章里引用的图会失效。`)) return;
-    try {
-      await api('/api/uploads', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      toast('已删除');
-      await loadMedia();
-    } catch (e) {
-      toast(e.message, true);
-    }
-  }
-
-  $('media-file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 45 * 1024 * 1024) { toast('图片太大（超过 45MB）', true); return; }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        await api('/api/uploads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: reader.result }),
-        });
-        toast('上传成功 ✅');
-        await loadMedia();
-      } catch (err) {
-        toast(err.message, true);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = ''; // 允许重复选择同一个文件
   });
 
   // ---------- 站点设置 ----------

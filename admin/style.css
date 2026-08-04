@@ -712,54 +712,6 @@ body {
   border-radius: 4px;
 }
 
-.upload-btn { display: inline-block; cursor: pointer; }
-
-/* ---------- 图片媒体库 ---------- */
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.8rem;
-}
-
-.media-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.media-card img {
-  width: 100%;
-  height: 110px;
-  object-fit: cover;
-  display: block;
-  background: var(--bg);
-}
-
-.media-name {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  padding: 0.35rem 0.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.media-actions {
-  display: flex;
-  gap: 0.3rem;
-  padding: 0 0.5rem 0.5rem;
-}
-
-.media-actions .btn-mini { font-size: 0.72rem; padding: 0.15rem 0.4rem; }
-
-.media-actions .btn-mini.danger { color: var(--danger); }
-.media-actions .btn-mini.danger:hover { background: var(--danger-soft); border-color: var(--danger); }
-
-.media-empty { color: var(--text-muted); font-size: 0.9rem; }
-
 /* ---------- 站点设置 ---------- */
 .settings-form {
   display: flex;

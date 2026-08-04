@@ -5,8 +5,9 @@ import { getVisiblePosts, sortPosts } from '../lib/posts';
 import { HERO_TITLE, HERO_SUBTITLE } from '../consts';
 import linksConfig from '../links-config.json';
 
-// 首页：置顶在前，其余按日期倒序；隐藏文章不显示
-const posts = sortPosts(await getVisiblePosts());
+// 首页「最新文章」：置顶优先（全部展示），再按时间取最新 3 篇非置顶
+const all = sortPosts(await getVisiblePosts());
+const posts = [...all.filter((p) => p.data.pinned), ...all.filter((p) => !p.data.pinned).slice(0, 3)];
 const links = linksConfig.links;
 ---
 
