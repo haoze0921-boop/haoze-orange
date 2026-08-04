@@ -80,6 +80,20 @@
     },
   });
 
+  // 粘贴纯图片网址（含图片库复制的链接）时，自动转成图片
+  try {
+    const Delta = Quill.import('delta');
+    quill.clipboard.addMatcher(Node.TEXT_NODE, (node, delta) => {
+      const t = String(node.data || '').trim();
+      if (/^(https?:\/\/|\/)[^\s]+\.(png|jpe?g|gif|webp)(\?[^\s]*)?$/i.test(t)) {
+        return new Delta().insert({ image: t });
+      }
+      return delta;
+    });
+  } catch (e) {
+    /* 忽略：粘贴增强失败不影响主体功能 */
+  }
+
   quill.on('text-change', () => {
     dirty = true;
     updatePreview();
@@ -290,17 +304,22 @@
 
   function insertMediaIntoPost(url) {
     if (!current) {
-      toast('请先打开或新建一篇文章，再插入图片', true);
+      toast('请先打开或新建一篇文章，再回来插入图片', true);
       switchPanel('posts');
+      $('btn-new').focus();
       return;
     }
     switchPanel('posts');
-    const range = lastSel && lastSel.index != null ? lastSel : quill.getSelection();
-    const index = range && range.index != null ? range.index : quill.getLength();
-    quill.insertEmbed(index, 'image', url, 'user');
-    quill.setSelection(index, 1, 'silent');
-    updatePreview();
-    toast('已插入正文，可选中图片调整宽度和对齐');
+    // 等编辑器显示出来再插入，确保能看到
+    requestAnimationFrame(() => {
+      const range = lastSel && lastSel.index != null ? lastSel : quill.getSelection(true);
+      const index = range && range.index != null ? range.index : quill.getLength();
+      quill.insertEmbed(index, 'image', url, 'user');
+      quill.setSelection(index + 1, 0, 'silent');
+      updatePreview();
+      toast('已插入图片，可选中它调整宽度和对齐');
+      quill.focus();
+    });
   }
 
   async function deleteMedia(name) {
