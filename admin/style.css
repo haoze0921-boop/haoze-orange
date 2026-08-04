@@ -784,6 +784,17 @@ body {
 
 .nav-links { display: flex; flex-direction: column; gap: 0.4rem; }
 
+/* 网站收集：每个网站一个卡片块 */
+.link-edit {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .nav-row { display: flex; gap: 0.4rem; align-items: center; }
 
 .nav-row .nav-href { flex: 2; }

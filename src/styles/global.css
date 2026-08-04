@@ -573,6 +573,49 @@ mark {
   color: var(--accent);
 }
 
+/* 网站收集卡片 */
+.link-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.link-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-card-go {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.link-card:hover .link-card-go {
+  color: var(--accent-strong);
+}
+
+.link-card-desc {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.link-card-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  line-height: 1.5;
+}
+
 /* ============================================================
    页脚
    ============================================================ */

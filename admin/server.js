@@ -619,6 +619,69 @@ app.put('/api/pet', (req, res) => {
   }
 });
 
+// ---------- API：网站收集 ----------
+// 主页「网站收集」模块的数据，存 src/links-config.json
+const LINKS_CONFIG_FILE = path.join(ROOT, 'src', 'links-config.json');
+const DEFAULT_LINKS = {
+  links: [
+    {
+      id: 'hullqin-games',
+      name: '在线桌游合集',
+      url: 'https://game.hullqin.cn/',
+      description: '联机桌游合集：UNO、斗地主、五子棋、狼人杀等近 30 款，创建房间分享链接即可开玩。',
+      note: '想做的桌游站参考，多人在线玩法的标杆。',
+    },
+  ],
+};
+
+function readLinksConfig() {
+  try {
+    const data = JSON.parse(fs.readFileSync(LINKS_CONFIG_FILE, 'utf-8'));
+    return { links: Array.isArray(data.links) ? data.links : DEFAULT_LINKS.links };
+  } catch {
+    return { links: [...DEFAULT_LINKS.links] };
+  }
+}
+
+// 校验清洗：名称/网址必填，网址只允许 http(s)，去掉引号尖括号防注入
+function sanitizeLinks(input) {
+  const arr = Array.isArray(input && input.links) ? input.links : [];
+  const seen = new Set();
+  const links = [];
+  for (const it of arr) {
+    if (!it || typeof it !== 'object') continue;
+    const name = String(it.name || '').trim().slice(0, 60);
+    let url = String(it.url || '').replace(/[<>"']/g, '').trim().slice(0, 500);
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    const description = String(it.description || '').trim().slice(0, 300);
+    const note = String(it.note || '').trim().slice(0, 300);
+    if (!name || !url) continue;
+    let id = String(it.id || '').trim().slice(0, 40);
+    if (!id || seen.has(id)) id = 'link-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+    seen.add(id);
+    links.push({ id, name, url, description, note });
+  }
+  return { links: links.slice(0, 50) };
+}
+
+app.get('/api/links', (_req, res) => {
+  try {
+    res.json(readLinksConfig());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/links', (req, res) => {
+  try {
+    const out = sanitizeLinks(req.body || {});
+    fs.writeFileSync(LINKS_CONFIG_FILE, JSON.stringify(out, null, 2), 'utf-8');
+    res.json({ ok: true, links: out.links });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
 // ---------- API：状态与发布 ----------
 
 app.get('/api/status', async (req, res) => {

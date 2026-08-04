@@ -25,6 +25,7 @@
     <button class="tab" data-panel="media" type="button">🖼 图片库</button>
     <button class="tab" data-panel="settings" type="button">⚙️ 站点设置</button>
     <button class="tab" data-panel="pet" type="button">🐱 桌宠</button>
+    <button class="tab" data-panel="links" type="button">🔖 网站收集</button>
   </nav>
 
   <section id="panel-posts">
@@ -239,6 +240,19 @@
         <button id="btn-save-pet" class="btn btn-primary" type="button">保存桌宠设置</button>
         <span id="pet-status" class="editor-status"></span>
       </div>
+    </div>
+  </section>
+
+  <section id="panel-links" class="panel hidden">
+    <div class="panel-head">
+      <h2>🔖 网站收集</h2>
+      <p class="panel-tip">管理主页的「网站收集」模块。每个网站可填：名称、网址、简介、我的想法（备注）。保存后点「发布到网上」生效。</p>
+    </div>
+    <div id="links-list" class="settings-form"></div>
+    <div class="settings-actions" style="margin-top:0.8rem">
+      <button id="btn-add-link" class="btn btn-mini" type="button">＋ 新增网站</button>
+      <button id="btn-save-links" class="btn btn-primary" type="button">保存网站收集</button>
+      <span id="links-status" class="editor-status"></span>
     </div>
   </section>
 

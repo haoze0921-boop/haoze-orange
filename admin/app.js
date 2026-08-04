@@ -227,9 +227,9 @@
     positionImgPanel(currentImg.getBoundingClientRect());
   });
 
-  // ---------- 标签页切换（文章 / 图片库 / 站点设置 / 桌宠） ----------
+  // ---------- 标签页切换（文章 / 图片库 / 站点设置 / 桌宠 / 网站收集） ----------
   function switchPanel(name) {
-    ['posts', 'media', 'settings', 'pet'].forEach((p) => {
+    ['posts', 'media', 'settings', 'pet', 'links'].forEach((p) => {
       $('panel-' + p).classList.toggle('hidden', p !== name);
     });
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.panel === name));
@@ -237,6 +237,7 @@
     if (name === 'media') loadMedia();
     if (name === 'settings') loadSettings();
     if (name === 'pet') loadPet();
+    if (name === 'links') loadLinks();
   }
   document.querySelectorAll('.tab').forEach((t) => {
     t.addEventListener('click', () => switchPanel(t.dataset.panel));
@@ -475,6 +476,73 @@
       });
       $('pet-status').textContent = '已保存 ✅（记得点「发布到网上」生效）';
       toast('桌宠设置已保存');
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- 网站收集 ----------
+  function linkRow(it) {
+    const row = document.createElement('div');
+    row.className = 'link-edit';
+    row.innerHTML = `
+      <div class="nav-row">
+        <input class="field link-name" placeholder="网站名称（必填）" maxlength="60" value="${escapeHtml(it.name || '')}">
+        <input class="field link-url" placeholder="网址，如 https://example.com（必填）" maxlength="500" value="${escapeHtml(it.url || '')}">
+        <button class="nav-del link-del" type="button" title="删除此网站">×</button>
+      </div>
+      <input class="field link-desc" placeholder="简介（选填）" maxlength="300" value="${escapeHtml(it.description || '')}">
+      <input class="field link-note" placeholder="我的想法（选填）" maxlength="300" value="${escapeHtml(it.note || '')}">
+    `;
+    row.querySelector('.link-del').addEventListener('click', () => row.remove());
+    return row;
+  }
+
+  function renderLinks(links) {
+    const box = $('links-list');
+    box.innerHTML = '';
+    const rows = Array.isArray(links) && links.length ? links : [];
+    rows.forEach((it) => box.appendChild(linkRow(it)));
+    if (!rows.length) {
+      box.innerHTML = '<p class="media-empty">还没有网站，点「＋ 新增网站」添加。</p>';
+      box.appendChild(linkRow({}));
+    }
+  }
+
+  function collectLinks() {
+    return Array.from(document.querySelectorAll('#links-list .link-edit')).map((row) => ({
+      name: row.querySelector('.link-name').value.trim(),
+      url: row.querySelector('.link-url').value.trim(),
+      description: row.querySelector('.link-desc').value.trim(),
+      note: row.querySelector('.link-note').value.trim(),
+    })).filter((l) => l.name || l.url);
+  }
+
+  async function loadLinks() {
+    try {
+      const d = await api('/api/links');
+      renderLinks(d.links || []);
+    } catch (e) {
+      toast('加载网站收集失败：' + e.message, true);
+    }
+  }
+
+  $('btn-add-link').addEventListener('click', () => $('links-list').appendChild(linkRow({})));
+
+  $('btn-save-links').addEventListener('click', async () => {
+    const body = { links: collectLinks() };
+    const btn = $('btn-save-links');
+    btn.disabled = true;
+    try {
+      await api('/api/links', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      $('links-status').textContent = '已保存 ✅（记得点「发布到网上」生效）';
+      toast('网站收集已保存');
     } catch (e) {
       toast(e.message, true);
     } finally {

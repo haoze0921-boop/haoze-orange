@@ -3,9 +3,11 @@ import Base from '../layouts/Base.astro';
 import PostCard from '../components/PostCard.astro';
 import { getVisiblePosts, sortPosts } from '../lib/posts';
 import { HERO_TITLE, HERO_SUBTITLE } from '../consts';
+import linksConfig from '../links-config.json';
 
 // 首页：置顶在前，其余按日期倒序；隐藏文章不显示
 const posts = sortPosts(await getVisiblePosts());
+const links = linksConfig.links;
 ---
 
 <Base title="首页">
@@ -13,6 +15,24 @@ const posts = sortPosts(await getVisiblePosts());
     <h1>{HERO_TITLE}</h1>
     <p>{HERO_SUBTITLE}</p>
   </section>
+
+  <h2 class="section-title">🌐 网站收集</h2>
+  <div class="card-grid">
+    {
+      links.map((link) => (
+        <a class="cat-card link-card" href={link.url} target="_blank" rel="noopener">
+          <div class="link-card-head">
+            <span class="link-card-name">{link.name}</span>
+            <span class="link-card-go" aria-hidden="true">↗</span>
+          </div>
+          <p class="link-card-desc">{link.description}</p>
+          {
+            link.note && <p class="link-card-note">💭 {link.note}</p>
+          }
+        </a>
+      ))
+    }
+  </div>
 
   <h2 class="section-title">📝 最新文章</h2>
   <div class="post-list">
