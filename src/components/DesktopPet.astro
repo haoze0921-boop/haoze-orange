@@ -188,6 +188,14 @@ const PET = petConfig;
     from { opacity: 0; transform: translateY(8px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
+  /* 聊天框退场：更快更轻，避免"被切掉"的生硬感 */
+  .pet-chat.closing {
+    animation: pet-chat-out 0.16s var(--ease-out, ease-out) forwards;
+  }
+  @keyframes pet-chat-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(8px) scale(0.98); }
+  }
   @keyframes msg-in {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
@@ -198,6 +206,7 @@ const PET = petConfig;
     .pet-img.jumping { animation: none; }
     .pet-img { transition: none; }
     .pet-chat.show { animation: none; }
+    .pet-chat.closing { animation: none; }
   }
   @media (max-width: 520px) {
     .pet-wrap, .pet-img { width: 112px; }
@@ -337,6 +346,8 @@ const PET = petConfig;
     const chatClose = document.getElementById('pet-chat-close');
 
     function openChat() {
+      chat.classList.remove('closing'); // 若正在退场，取消并重新打开
+      chat.removeEventListener('animationend', onChatOutEnd); // 清除残留退场回调，防止动画结束后误关
       chat.classList.add('show');
       // 聊天框贴近桌宠摆放（放不下翻到下方）
       const r = wrap.getBoundingClientRect();
@@ -350,7 +361,23 @@ const PET = petConfig;
       chat.style.top = Math.max(8, top) + 'px';
       chatInput.focus();
     }
-    chatClose.addEventListener('click', () => chat.classList.remove('show'));
+    // 退场动画结束的收尾（独立命名，便于 openChat 提前移除监听，避免竞态误关）
+    function onChatOutEnd() {
+      chat.classList.remove('show');
+      chat.classList.remove('closing');
+    }
+    // 关闭聊天框：先播退场动画（160ms），结束后再隐藏，避免瞬间消失
+    function closeChat() {
+      if (!chat.classList.contains('show') || chat.classList.contains('closing')) return;
+      // 系统开启「减弱动态效果」时直接隐藏（animation 被禁用时 animationend 不会触发）
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        chat.classList.remove('show');
+        return;
+      }
+      chat.classList.add('closing');
+      chat.addEventListener('animationend', onChatOutEnd, { once: true });
+    }
+    chatClose.addEventListener('click', closeChat);
 
     function appendMsg(role, text) {
       const div = document.createElement('div');

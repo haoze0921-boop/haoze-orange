@@ -10,10 +10,11 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^7.1.6",
+    "astro": "^7.2.2",
     "express": "^5.2.1",
     "gray-matter": "^4.0.3",
     "marked": "^18.0.7",
-    "quill": "^2.0.3"
+    "quill": "^2.0.3",
+    "vite": "^8.2.1"
   }
 }

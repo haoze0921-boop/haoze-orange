@@ -59,6 +59,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 键盘导航焦点环：仅 Tab 键触发（鼠标点击不显示），改善无障碍 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 /* 页面主体容器 */
 .container {
   max-width: 720px;
@@ -101,12 +108,17 @@ a:hover {
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
+  display: inline-block;
+  transition: color 0.15s, transform 0.16s var(--ease-out);
 }
 
 .site-title:hover {
   color: var(--accent-strong);
   text-decoration: none;
 }
+
+/* 按压反馈：任何可点元素都该回应点击 */
+.site-title:active { transform: scale(0.97); }
 
 .site-nav {
   display: flex;
@@ -116,13 +128,16 @@ a:hover {
 .site-nav a {
   color: var(--text-muted);
   font-size: 0.95rem;
-  transition: color 0.15s;
+  display: inline-block;
+  transition: color 0.15s, transform 0.16s var(--ease-out);
 }
 
 .site-nav a:hover {
   color: var(--accent-strong);
   text-decoration: none;
 }
+
+.site-nav a:active { transform: scale(0.97); }
 
 /* 当前页高亮（由 Header 组件的 aria-current 控制） */
 .site-nav a[aria-current="page"] {
@@ -288,11 +303,15 @@ a:hover {
 .back-link a {
   color: var(--text-muted);
   font-size: 0.9rem;
+  display: inline-block;
+  transition: color 0.15s, transform 0.16s var(--ease-out);
 }
 
 .back-link a:hover {
   color: var(--accent-strong);
 }
+
+.back-link a:active { transform: scale(0.97); }
 
 /* 标签云 */
 .tag-cloud {
@@ -342,6 +361,8 @@ a:hover {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 1.8rem 2rem;
+  /* 文章页入场：与首页卡片一致的轻浮入（防止进入瞬间"硬切"） */
+  animation: card-in 260ms var(--ease-out) backwards;
 }
 
 .prose h1,

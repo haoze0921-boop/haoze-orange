@@ -27,12 +27,24 @@
   const viewLink = $('btn-view');
 
   // ---------- 工具 ----------
+  // 退场动画结束的收尾（独立命名，便于 toast 提前移除监听，避免竞态误隐藏）
+  function onToastOutEnd() {
+    toastEl.classList.add('hidden');
+  }
+
   function toast(msg, isError = false) {
     toastEl.textContent = msg;
     toastEl.classList.toggle('error', isError);
+    // 先取消可能进行中的退场并移除监听，再重新显示（入场动画随之重播）
+    toastEl.classList.remove('toast-out');
+    toastEl.removeEventListener('animationend', onToastOutEnd);
     toastEl.classList.remove('hidden');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => toastEl.classList.add('hidden'), 2600);
+    toast._t = setTimeout(() => {
+      // 播放退场动画，结束后再真正隐藏（display:none 无法过渡）
+      toastEl.classList.add('toast-out');
+      toastEl.addEventListener('animationend', onToastOutEnd, { once: true });
+    }, 2600);
   }
 
   async function api(url, options) {
@@ -765,7 +777,22 @@
   }
 
   // ---------- 发布 ----------
+  // 退场动画结束的收尾（独立命名，便于 publish 提前移除监听，避免竞态误关）
+  function onPublishModalOutEnd() {
+    publishModal.classList.remove('modal-out');
+    publishModal.classList.add('hidden');
+  }
+
+  // 关闭发布弹窗：先播放退场动画，结束后再真正隐藏
+  function closePublishModal() {
+    publishModal.classList.add('modal-out');
+    publishModal.addEventListener('animationend', onPublishModalOutEnd, { once: true });
+  }
+
   async function publish() {
+    // 若正在退场（modal-out 播放中），先取消退场并移除监听，避免动画结束后弹窗被误隐藏
+    publishModal.classList.remove('modal-out');
+    publishModal.removeEventListener('animationend', onPublishModalOutEnd);
     publishModal.classList.remove('hidden');
     publishOutput.textContent = '正在执行 git 提交与推送…';
     const btn = $('btn-publish');
@@ -798,7 +825,11 @@
   $('btn-new-dir').addEventListener('click', newDir);
   $('btn-site').addEventListener('click', () => { window.open('http://localhost:4321' + siteBase, '_blank'); });
   $('btn-publish').addEventListener('click', publish);
-  $('btn-publish-close').addEventListener('click', () => publishModal.classList.add('hidden'));
+  $('btn-publish-close').addEventListener('click', closePublishModal);
+  // 点击遮罩空白处也可关闭发布弹窗
+  publishModal.addEventListener('click', (e) => {
+    if (e.target === publishModal) closePublishModal();
+  });
   searchEl.addEventListener('input', renderPostList);
   ['f-title', 'f-description', 'f-date', 'f-dir', 'f-pinned', 'f-hidden'].forEach((id) => {
     $(id).addEventListener('input', () => { dirty = true; });
