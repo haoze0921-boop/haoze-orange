@@ -40,11 +40,11 @@ const base = import.meta.env.BASE_URL;
     <DesktopPet />
 
     <script>
-      // 文章图片滚动渐显（clip-path 揭幕效果），进入视口后永久显示
+      // 文章图片/章节标题滚动渐显（进入视口后永久显示），JS 禁用时不受影响
       const root = document.documentElement;
       root.classList.add('js-reveal');
-      const imgs = document.querySelectorAll('.prose img');
-      if (imgs.length) {
+      const revealTargets = document.querySelectorAll('.prose img, .prose h2, .prose h3');
+      if (revealTargets.length) {
         if ('IntersectionObserver' in window) {
           const io = new IntersectionObserver((entries) => {
             for (const entry of entries) {
@@ -54,11 +54,49 @@ const base = import.meta.env.BASE_URL;
               }
             }
           }, { rootMargin: '-80px 0px' });
-          imgs.forEach((img) => io.observe(img));
+          revealTargets.forEach((el) => io.observe(el));
         } else {
-          imgs.forEach((img) => img.classList.add('revealed'));
+          revealTargets.forEach((el) => el.classList.add('revealed'));
         }
       }
+
+      // 代码块复制按钮：点击复制代码，短暂显示「已复制」反馈
+      document.querySelectorAll('.prose pre').forEach((pre) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'copy-btn';
+        btn.textContent = '复制';
+        btn.setAttribute('aria-label', '复制代码');
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code')?.textContent ?? pre.textContent ?? '';
+          try {
+            await navigator.clipboard.writeText(code.trim());
+          } catch {
+            // 旧浏览器回退：临时 textarea 复制
+            const ta = document.createElement('textarea');
+            ta.value = code.trim();
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch { /* 忽略 */ }
+            ta.remove();
+          }
+          btn.textContent = '已复制';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+          }, 1500);
+        });
+        pre.appendChild(btn);
+      });
+
+      // View Transitions 导航后：卡片 morph 已提供文章入场，禁用 .prose 自带动画防重播闪动
+      // （直接访问/刷新时不会触发 after-swap，动画正常播放一次）
+      document.addEventListener('astro:after-swap', () => {
+        document.querySelectorAll('.prose').forEach((el) => { el.style.animation = 'none'; });
+      });
     </script>
   </body>
 </html>

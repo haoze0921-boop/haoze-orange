@@ -13,7 +13,16 @@ const links = linksConfig.links;
 
 <Base title="首页">
   <section class="hero">
-    <h1>{HERO_TITLE}</h1>
+    <h1 aria-label={HERO_TITLE}>
+      {
+        // 逐字拆分（按 Unicode 码点，emoji 🍊 不会被拆坏），每字延迟 45ms 错峰入场
+        Array.from(HERO_TITLE).map((ch, i) => (
+          <span class="hero-char" aria-hidden="true" style={`animation-delay: ${80 + i * 45}ms`}>
+            {ch === ' ' ? '\u00A0' : ch}
+          </span>
+        ))
+      }
+    </h1>
     <p>{HERO_SUBTITLE}</p>
   </section>
 
@@ -50,3 +59,36 @@ const links = linksConfig.links;
     )
   }
 </Base>
+
+<script>
+  // 首页 hero 鼠标视差：仅桌面精确指针设备；lerp 平滑跟随，避免直连鼠标的生硬感
+  (() => {
+    const hero = document.querySelector('.hero');
+    if (!hero) return;
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!fine || reduce) return;
+
+    const title = hero.querySelector('h1');
+    const sub = hero.querySelector('p');
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+
+    const onMove = (e: MouseEvent) => {
+      const r = hero.getBoundingClientRect();
+      cx = (e.clientX - r.left) / r.width - 0.5; // -0.5 ~ 0.5
+      cy = (e.clientY - r.top) / r.height - 0.5;
+    };
+
+    const loop = () => {
+      tx += (cx - tx) * 0.08;
+      ty += (cy - ty) * 0.08;
+      // 标题位移略大于副标题，形成轻微深度视差；幅度很小，克制
+      if (title) title.style.transform = `translate3d(${(tx * -14).toFixed(2)}px, ${(ty * -10).toFixed(2)}px, 0)`;
+      if (sub) sub.style.transform = `translate3d(${(tx * -7).toFixed(2)}px, ${(ty * -5).toFixed(2)}px, 0)`;
+      raf = requestAnimationFrame(loop);
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    raf = requestAnimationFrame(loop);
+  })();
+</script>

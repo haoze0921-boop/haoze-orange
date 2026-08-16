@@ -78,10 +78,6 @@ a {
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
-}
-
 /* ============================================================
    顶部导航
    ============================================================ */
@@ -154,10 +150,6 @@ a:hover {
 }
 
 /* 首页 hero（宽松排版：大号标题 + 负字距 + 紧凑行高） */
-.hero {
-  animation: card-in 400ms var(--ease-out) backwards;
-}
-
 .hero h1 {
   font-size: clamp(1.9rem, 4.5vw, 3rem);
   line-height: 1.12;
@@ -166,11 +158,27 @@ a:hover {
   font-weight: 700;
 }
 
+/* 标题逐字错峰入场：每字上浮淡入（首屏一次，低频 delight；JS 禁用时也能播） */
+.hero-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.35em);
+  animation: char-in 0.4s var(--ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes char-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 副标题：等标题错峰播完再轻轻浮现 */
 .hero p {
   color: var(--text-muted);
   margin: 0 0 0.25rem;
   max-width: 34em;
   line-height: 1.6;
+  animation: card-in 0.4s var(--ease-out) backwards;
+  animation-delay: 0.55s;
 }
 
 .section-title {
@@ -353,6 +361,22 @@ a:hover {
 }
 
 /* ============================================================
+   阅读进度条（仅文章页）：顶部细橙线，随滚动增长
+   ============================================================ */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  transform: scaleX(0);
+  transform-origin: left center;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ============================================================
    文章正文（.prose）
    ============================================================ */
 .prose {
@@ -363,6 +387,11 @@ a:hover {
   padding: 1.8rem 2rem;
   /* 文章页入场：与首页卡片一致的轻浮入（防止进入瞬间"硬切"） */
   animation: card-in 260ms var(--ease-out) backwards;
+}
+
+/* View Transition 导航时（如点击卡片展开成文章），morph 已提供过渡，禁用重复入场动画 */
+html[data-astro-transition] .prose {
+  animation: none;
 }
 
 .prose h1,
@@ -420,12 +449,55 @@ a:hover {
 }
 
 .prose pre {
+  position: relative;
   background: #2f2b25;
   color: #f3ead8;
   padding: 1rem 1.2rem;
   border-radius: var(--radius-sm);
   overflow-x: auto;
   line-height: 1.6;
+}
+
+/* 代码块复制按钮：悬停浮现，点按有反馈 */
+.copy-btn {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(243, 234, 216, 0.22);
+  border-radius: 6px;
+  background: rgba(47, 43, 37, 0.55);
+  color: #f3ead8;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease-out), background 0.15s var(--ease-out),
+    transform 0.16s var(--ease-out), color 0.15s;
+}
+
+.prose pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: rgba(47, 43, 37, 0.85);
+}
+
+.copy-btn:active {
+  transform: scale(0.97);
+}
+
+.copy-btn.copied {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* 触摸设备没有 hover：按钮常显，避免无法复制 */
+@media (hover: none) {
+  .copy-btn { opacity: 1; }
 }
 
 .prose pre code {
@@ -454,6 +526,17 @@ a:hover {
   clip-path: inset(0 0 0 0);
 }
 
+/* 章节标题滚动渐显：标题进入视口时轻浮入（克制：只动 opacity/transform） */
+.js-reveal .prose h2:not(.revealed),
+.js-reveal .prose h3:not(.revealed) {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.js-reveal .prose h2,
+.js-reveal .prose h3 {
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
 .prose hr {
   border: none;
   border-top: 1px solid var(--border);
@@ -461,8 +544,18 @@ a:hover {
 }
 
 .prose a {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  /* 下划线从左侧滑入：background 尺寸过渡，比 text-decoration 更可控、更精致 */
+  text-decoration: none;
+  background-image: linear-gradient(var(--accent-strong), var(--accent-strong));
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  background-position: 0 100%;
+  padding-bottom: 1px;
+  transition: background-size 0.2s var(--ease-out), color 0.15s;
+}
+
+.prose a:hover {
+  background-size: 100% 1.5px;
 }
 
 /* 文章页头部 */
@@ -679,8 +772,15 @@ mark {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 
   .js-reveal .prose img { clip-path: none !important; }
+  .js-reveal .prose h2,
+  .js-reveal .prose h3 {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }

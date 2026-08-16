@@ -11,9 +11,11 @@ const { title, description, date, tags } = post.data;
 const base = import.meta.env.BASE_URL;
 // 分类 = 文章所在目录（文件名里的目录部分）
 const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
+// View Transition 共享名：与文章详情页的 .prose 同名（规则必须完全一致），点击时卡片「展开成文章」
+const vtName = 'vt-' + post.id.replace(/\//g, '-');
 ---
 
-<article class="post-card">
+<article class="post-card" style={`view-transition-name: ${vtName}`}>
   <a class="post-card-link" href={`${base}blog/${post.id}`}>
     <h2 class="post-card-title">{title}</h2>
     {description && <p class="post-card-desc">{description}</p>}

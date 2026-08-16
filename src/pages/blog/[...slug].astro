@@ -18,12 +18,15 @@ const { Content } = await render(post);
 const base = import.meta.env.BASE_URL;
 // 分类 = 文章所在目录
 const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
+// View Transition 共享名：与首页/分类页的 PostCard 同名，点击卡片时「卡片展开成文章」
+const vtName = 'vt-' + post.id.replace(/\//g, '-');
 ---
 
 <Base title={post.data.title} description={post.data.description}>
+  <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
   <p class="back-link"><a href={`${base}`}>← 返回首页</a></p>
 
-  <article class="prose">
+  <article class="prose" style={`view-transition-name: ${vtName}`}>
     <header class="post-header">
       <h1>{post.data.title}</h1>
       <div class="post-meta">
@@ -58,3 +61,27 @@ const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
     <Content />
   </article>
 </Base>
+
+<script>
+  // 阅读进度条：顶部细线随滚动增长（transform 驱动，性能好；reduced-motion 下也保留，
+  // 因为它是功能反馈而非装饰动画）
+  (() => {
+    const bar = document.getElementById('reading-progress');
+    if (!bar) return;
+    let ticking = false;
+    const update = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      const p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+      bar.style.transform = `scaleX(${p})`;
+      ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    window.addEventListener('resize', update);
+    // View Transitions 导航后滚动位置恢复，需要重算进度
+    document.addEventListener('astro:after-swap', update);
+    update();
+  })();
+</script>
