@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const CONTENT_DIR = path.join(ROOT, 'src', 'content', 'blog');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+const IMAGES_DIR = path.join(PUBLIC_DIR, 'images');
 const PORT = 4322;
 
 const app = express();
@@ -276,6 +278,48 @@ app.delete('/api/dirs', (req, res) => {
     }
     fs.rmdirSync(full);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+// ---------- API：图片上传 ----------
+// 编辑器插入的图片先压缩再经此接口落盘到 public/images/，文章里只存 URL，
+// 避免 base64 内嵌导致文章文件巨大、搜索索引膨胀、页面加载缓慢。
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 解码后上限 4MB（前端已压缩，此为兜底）
+
+// 校验并解码 data URL：返回 { buffer, ext }，非法则抛 400
+function decodeImageData(data, label = '图片') {
+  if (typeof data !== 'string' || !data.startsWith('data:image/')) {
+    throw badRequest(`${label}格式不合法：需要 data:image/... 开头的 base64 数据`);
+  }
+  const m = data.match(/^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) throw badRequest(`${label}数据不完整或类型不支持（仅 png/jpeg/webp/gif）`);
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  const buffer = Buffer.from(m[2], 'base64');
+  if (!buffer.length) throw badRequest(`${label}内容为空`);
+  if (buffer.length > MAX_IMAGE_BYTES) {
+    throw badRequest(`图片过大（${Math.round(buffer.length / 1024)}KB > ${MAX_IMAGE_BYTES / 1024 / 1024}MB），请压缩后再试`);
+  }
+  return { buffer, ext };
+}
+
+app.post('/api/upload', (req, res) => {
+  try {
+    const { data, dir } = req.body || {};
+    const { buffer, ext } = decodeImageData(data);
+
+    // 按月份分子目录（YYYY-MM），避免单个目录文件过多
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const targetDir = path.join(IMAGES_DIR, month);
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    // 文件名：时间戳 + 随机串，防碰撞、防路径穿越
+    const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    fs.writeFileSync(path.join(targetDir, name), buffer);
+    res.json({ ok: true, url: `/images/${month}/${name}` });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message });
   }

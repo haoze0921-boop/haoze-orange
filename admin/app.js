@@ -141,7 +141,60 @@
   let currentImg = null; // 当前选中的 <img> DOM
   let currentImgRange = null; // 对应的 Quill Range
 
-  // 覆盖 Quill 默认图片插入：读本地文件 → base64 → 插入并选中 → 自动弹出设置面板
+  // 图片压缩 + 上传：不再把大图 base64 内嵌进文章，
+  // 而是缩放/转 WebP 压缩后经 /api/upload 落盘到 public/images，文章里只存 URL。
+  async function compressAndUpload(file) {
+    // 1) 读图
+    const bitmap = await createImageBitmap(file);
+    // 2) 超宽缩放（正文约 720px，1600px 足够高清且体积可控）
+    const MAX_W = 1600;
+    let w = bitmap.width;
+    let h = bitmap.height;
+    if (w > MAX_W) {
+      h = Math.round((h / w) * MAX_W);
+      w = MAX_W;
+    }
+    // 3) 绘制到 canvas 并转 WebP（支持透明、体积最小），失败回退 JPEG/原格式
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('浏览器不支持 Canvas 压缩');
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close && bitmap.close();
+
+    const toDataUrl = (type, quality) =>
+      new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('图片转换失败'));
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('图片读取失败'));
+          reader.readAsDataURL(blob);
+        }, type, quality);
+      });
+
+    let data = null;
+    let ext = '';
+    try {
+      data = await toDataUrl('image/webp', 0.82);
+      ext = 'webp';
+    } catch {
+      data = await toDataUrl('image/jpeg', 0.82);
+      ext = 'jpg';
+    }
+    if (!data) throw new Error('图片压缩失败');
+
+    // 4) 上传 → 拿 URL
+    const up = await api('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data, ext }),
+    });
+    return siteBase.replace(/\/+$/, '') + up.url;
+  }
+
+  // 覆盖 Quill 默认图片插入：读本地文件 → 压缩上传 → 插入 URL → 选中并弹设置面板
   quill.getModule('toolbar').addHandler('image', () => {
     const range = quill.getSelection(true);
     const input = document.createElement('input');
@@ -150,14 +203,15 @@
     input.onchange = () => {
       const file = input.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const index = range && range.index != null ? range.index : quill.getLength();
-        quill.insertEmbed(index, 'image', reader.result, 'user');
+      const index = range && range.index != null ? range.index : quill.getLength();
+      const done = (url) => {
+        quill.insertEmbed(index, 'image', url, 'user');
         quill.setSelection(index, 1, 'silent'); // 选中刚插入的图片 → 自动弹面板
         updatePreview();
       };
-      reader.readAsDataURL(file);
+      compressAndUpload(file)
+        .then(done)
+        .catch((err) => toast('图片上传失败：' + (err.message || err), true));
     };
     input.click();
   });
