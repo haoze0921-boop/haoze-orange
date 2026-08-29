@@ -30,8 +30,9 @@ const base = import.meta.env.BASE_URL;
     <ClientRouter />
   </head>
   <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
     <Header />
-    <main class="main">
+    <main class="main" id="main-content">
       <div class="container">
         <slot />
       </div>

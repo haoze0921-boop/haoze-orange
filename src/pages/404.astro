@@ -1,0 +1,18 @@
+---
+import Base from '../layouts/Base.astro';
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="页面不见了">
+  <section class="hero" style="text-align: center; padding-top: 3rem;">
+    <h1 style="justify-content: center; display: flex;">
+      <span class="hero-char" aria-hidden="true">4</span>
+      <span class="hero-char" aria-hidden="true" style="animation-delay: 45ms">0</span>
+      <span class="hero-char" aria-hidden="true" style="animation-delay: 90ms">4</span>
+    </h1>
+    <p style="max-width: none;">这个页面好像掉进橘子堆里找不到啦 🍊</p>
+    <p style="max-width: none; margin-top: 1.5rem;">
+      <a class="tag-pill tag-pill-lg" href={`${base}`} style="text-decoration: none;">← 回到首页</a>
+    </p>
+  </section>
+</Base>
