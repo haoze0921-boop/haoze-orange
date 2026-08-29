@@ -102,6 +102,17 @@ body {
   padding: 0 1.25rem;
 }
 
+/* 宽容器：首页/分类等列表页使用（宽屏下展示真正的多栏布局） */
+.container-wide {
+  max-width: 76rem;
+}
+
+@media (max-width: 900px) {
+  .container-wide {
+    max-width: 46rem;
+  }
+}
+
 a {
   color: var(--accent-strong);
   text-decoration: none;
@@ -180,14 +191,22 @@ a {
   padding: 2.5rem 0 3.5rem;
 }
 
-/* 首页 hero（编辑式排版：展示字体 + 负字距 + 紧凑行高） */
+/* 首页 hero：左右分屏（编辑式排版 + 右置视觉锚点） */
 .hero {
   position: relative;
-  padding: 0.75rem 0 0.5rem;
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  align-items: center;
+  gap: 2.5rem;
+  padding: 2.5rem 0 3.5rem;
+}
+
+.hero-copy {
+  position: relative;
 }
 
 /* 装饰性橘色圆点（呼应"橘子"，纯装饰、视觉锚点） */
-.hero::before {
+.hero-copy::before {
   content: '';
   position: absolute;
   top: 0.9rem;
@@ -207,8 +226,8 @@ a {
 
 .hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(2.1rem, 5vw, 3.4rem);
-  line-height: 1.06;
+  font-size: clamp(2.2rem, 4.6vw, 3.6rem);
+  line-height: 1.05;
   letter-spacing: -0.03em;
   margin: 0 0 1rem;
   font-weight: 650;
@@ -231,12 +250,185 @@ a {
 /* 副标题：等标题错峰播完再轻轻浮现 */
 .hero p {
   color: var(--text-muted);
-  margin: 0 0 0.25rem;
+  margin: 0 0 1.5rem;
   max-width: 30em;
   line-height: 1.7;
   font-size: 1.05rem;
   animation: card-in 0.4s var(--ease-out) backwards;
   animation-delay: 0.55s;
+}
+
+/* hero 操作按钮 */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  animation: card-in 0.4s var(--ease-out) backwards;
+  animation-delay: 0.75s;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.62rem 1.3rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out),
+    background 0.15s var(--ease-out), color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(239, 154, 22, 0.35), 0 10px 24px rgba(239, 154, 22, 0.22);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: #e28c08;
+    box-shadow: 0 4px 10px rgba(239, 154, 22, 0.4), 0 14px 30px rgba(239, 154, 22, 0.28);
+    text-decoration: none;
+  }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent-strong);
+  border: 1.5px solid var(--border);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    text-decoration: none;
+  }
+}
+
+/* 右置视觉锚点：CSS 绘制的"橘子"（品牌图形，纯装饰） */
+.hero-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: visual-in 0.5s var(--ease-out) backwards;
+  animation-delay: 0.35s;
+}
+
+@keyframes visual-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.hero-orbit {
+  position: relative;
+  width: min(280px, 26vw);
+  height: min(280px, 26vw);
+}
+
+/* 外圈轨道 */
+.hero-orbit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(239, 154, 22, 0.35);
+  animation: orbit-spin 24s linear infinite;
+}
+
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 橘子本体 */
+.hero-peel {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, #ffd9a0 0%, #ffbe5c 34%, #f59e0b 58%, #d97706 88%);
+  box-shadow:
+    inset -8px -10px 22px rgba(160, 80, 0, 0.28),
+    0 18px 40px rgba(239, 154, 22, 0.3),
+    0 4px 12px rgba(239, 154, 22, 0.18);
+  animation: peel-bob 5s var(--ease-in-out) infinite;
+}
+
+@keyframes peel-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* 橘子高光 */
+.hero-peel::before {
+  content: '';
+  position: absolute;
+  top: 12%;
+  left: 18%;
+  width: 30%;
+  height: 20%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  filter: blur(3px);
+  transform: rotate(-18deg);
+}
+
+/* 橘子蒂/叶子 */
+.hero-peel::after {
+  content: '';
+  position: absolute;
+  top: -7%;
+  left: 50%;
+  width: 10%;
+  height: 16%;
+  border-radius: 999px 999px 999px 999px;
+  background: linear-gradient(180deg, #6b7c3a, #56682c);
+  transform: translateX(-50%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* 果肉纹理点 */
+.hero-seed {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero-seed::before,
+.hero-seed::after {
+  content: '';
+  position: absolute;
+  width: 5%;
+  height: 3%;
+  border-radius: 50%;
+  background: rgba(190, 100, 0, 0.35);
+}
+
+.hero-seed::before { top: 30%; left: 55%; }
+.hero-seed::after { top: 58%; left: 38%; }
+
+/* 宽容器下 hero 布局自动生效；窄屏退回单列 */
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 1.5rem 0 2.5rem;
+  }
+  .hero-visual {
+    order: 2;
+  }
+  .hero-orbit {
+    width: 200px;
+    height: 200px;
+  }
 }
 
 /* 页面级标题（分类页/搜索页等直接子级 h1）：统一展示字体 */
@@ -267,6 +459,169 @@ a {
   height: 3px;
   border-radius: 999px;
   background: var(--accent);
+}
+
+/* ============================================================
+   首页双栏布局：主区（文章）+ 侧栏（网站收集/分类/关于）
+   ============================================================ */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+  padding-top: 0.5rem;
+}
+
+.home-main {
+  min-width: 0;
+}
+
+.home-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* 侧栏：网站收集链接 */
+.side-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.side-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+  border: 1px solid transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .side-link:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(239, 154, 22, 0.35);
+    text-decoration: none;
+    color: var(--text);
+  }
+}
+
+.side-link-name {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.side-link-go {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.side-link:hover .side-link-go {
+  color: var(--accent-strong);
+}
+
+.side-link-desc {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.side-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+}
+
+/* 侧栏：分类快捷入口 */
+.side-cats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.side-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.55rem 0.2rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: color 0.15s, padding-left 0.15s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .side-cat:hover {
+    color: var(--accent-strong);
+    padding-left: 0.35rem;
+    text-decoration: none;
+  }
+}
+
+.side-cat-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  white-space: nowrap;
+}
+
+/* 侧栏：关于卡 */
+.side-about {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+  padding: 1rem 1.1rem;
+  background: linear-gradient(120deg, var(--accent-soft), var(--card) 70%);
+  border: 1px solid rgba(239, 154, 22, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .side-about:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    text-decoration: none;
+    color: var(--text);
+  }
+}
+
+.side-about-title {
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+
+.side-about-arrow {
+  color: var(--accent-strong);
+  font-size: 1.1rem;
+}
+
+/* 窄屏：双栏退回单列（阅读流优先） */
+@media (max-width: 900px) {
+  .home-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  .home-side {
+    order: 2;
+  }
 }
 
 /* ============================================================
@@ -719,6 +1074,16 @@ mark {
   border-radius: 3px;
 }
 
+/* 侧栏内区块标题：间距收紧（不占主区那么大） */
+.home-side .section-title {
+  margin: 1.8rem 0 0.85rem;
+  font-size: 1.1rem;
+}
+
+.home-side .section-title:first-child {
+  margin-top: 0;
+}
+
 /* ============================================================
    标签/分类卡片
    ============================================================ */
@@ -902,8 +1267,11 @@ mark {
     transition: none !important;
   }
 
-  /* 减弱动效时：hero 装饰圆点直接显示 */
-  .hero::before {
+  /* 减弱动效时：hero 装饰圆点/橘子/轨道动画全部退化为静态 */
+  .hero-copy::before,
+  .hero-visual,
+  .hero-peel,
+  .hero-orbit::before {
     animation: none !important;
   }
 }

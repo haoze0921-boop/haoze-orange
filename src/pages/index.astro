@@ -2,62 +2,104 @@
 import Base from '../layouts/Base.astro';
 import PostCard from '../components/PostCard.astro';
 import { getVisiblePosts, sortPosts } from '../lib/posts';
-import { HERO_TITLE, HERO_SUBTITLE } from '../consts';
+import { HERO_TITLE, HERO_SUBTITLE, SITE_TITLE } from '../consts';
 import linksConfig from '../links-config.json';
 
 // 首页「最新文章」：置顶优先（全部展示），再按时间取最新 3 篇非置顶
 const all = sortPosts(await getVisiblePosts());
 const posts = [...all.filter((p) => p.data.pinned), ...all.filter((p) => !p.data.pinned).slice(0, 3)];
 const links = linksConfig.links;
+const base = import.meta.env.BASE_URL;
+
+// 侧栏「分类快捷入口」：按文章数排序
+const catCount = new Map<string, number>();
+for (const p of all) {
+  const i = p.id.indexOf('/');
+  if (i !== -1) catCount.set(p.id.slice(0, i), (catCount.get(p.id.slice(0, i)) || 0) + 1);
+}
+const cats = [...catCount.entries()].sort((a, b) => b[1] - a[1]);
 ---
 
-<Base title="首页">
+<Base title="首页" wide>
   <section class="hero">
-    <h1 aria-label={HERO_TITLE}>
-      {
-        // 逐字拆分（按 Unicode 码点，emoji 🍊 不会被拆坏），每字延迟 45ms 错峰入场
-        Array.from(HERO_TITLE).map((ch, i) => (
-          <span class="hero-char" aria-hidden="true" style={`animation-delay: ${80 + i * 45}ms`}>
-            {ch === ' ' ? '\u00A0' : ch}
-          </span>
-        ))
-      }
-    </h1>
-    <p>{HERO_SUBTITLE}</p>
+    <div class="hero-copy">
+      <h1 aria-label={HERO_TITLE}>
+        {
+          // 逐字拆分（按 Unicode 码点，emoji 🍊 不会被拆坏），每字延迟 45ms 错峰入场
+          Array.from(HERO_TITLE).map((ch, i) => (
+            <span class="hero-char" aria-hidden="true" style={`animation-delay: ${80 + i * 45}ms`}>
+              {ch === ' ' ? '\u00A0' : ch}
+            </span>
+          ))
+        }
+      </h1>
+      <p>{HERO_SUBTITLE}</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href={`${base}categories`}>浏览分类</a>
+        <a class="btn btn-ghost" href={`${base}search`}>搜索文章</a>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-orbit">
+        <div class="hero-peel"></div>
+        <span class="hero-seed"></span>
+      </div>
+    </div>
   </section>
 
-  <h2 class="section-title">🌐 网站收集</h2>
-  <div class="card-grid">
-    {
-      links.map((link) => (
-        <a class="cat-card link-card" href={link.url} target="_blank" rel="noopener">
-          <div class="link-card-head">
-            <span class="link-card-name">{link.name}</span>
-            <span class="link-card-go" aria-hidden="true">↗</span>
-          </div>
-          <p class="link-card-desc">{link.description}</p>
-          {
-            link.note && <p class="link-card-note">💭 {link.note}</p>
-          }
-        </a>
-      ))
-    }
-  </div>
+  <div class="home-grid">
+    <div class="home-main">
+      <h2 class="section-title">📝 最新文章</h2>
+      <div class="post-list">
+        {
+          posts.map((post) => (
+            <PostCard post={post} />
+          ))
+        }
+      </div>
 
-  <h2 class="section-title">📝 最新文章</h2>
-  <div class="post-list">
-    {
-      posts.map((post) => (
-        <PostCard post={post} />
-      ))
-    }
-  </div>
+      {
+        posts.length === 0 && (
+          <p>还没有文章，去 <code>src/content/blog/</code> 里写第一篇吧。</p>
+        )
+      }
+    </div>
 
-  {
-    posts.length === 0 && (
-      <p>还没有文章，去 <code>src/content/blog/</code> 里写第一篇吧。</p>
-    )
-  }
+    <aside class="home-side">
+      <h2 class="section-title">🌐 网站收集</h2>
+      <div class="side-links">
+        {
+          links.map((link) => (
+            <a class="side-link" href={link.url} target="_blank" rel="noopener">
+              <span class="side-link-name">{link.name}</span>
+              <span class="side-link-go" aria-hidden="true">↗</span>
+              {link.description && <span class="side-link-desc">{link.description}</span>}
+            </a>
+          ))
+        }
+        {
+          links.length === 0 && <p class="side-empty">还没有收藏的网站，去后台添加吧。</p>
+        }
+      </div>
+
+      <h2 class="section-title">📁 分类</h2>
+      <div class="side-cats">
+        {
+          cats.map(([name, count]) => (
+            <a class="side-cat" href={`${base}categories/${encodeURIComponent(name)}`}>
+              <span>{name}</span>
+              <span class="side-cat-count">{count} 篇</span>
+            </a>
+          ))
+        }
+      </div>
+
+      <a class="side-about" href={`${base}about`}>
+        <span class="side-about-title">关于{SITE_TITLE}</span>
+        <span class="side-about-arrow" aria-hidden="true">→</span>
+      </a>
+    </aside>
+  </div>
 </Base>
 
 <script>
@@ -69,8 +111,8 @@ const links = linksConfig.links;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!fine || reduce) return;
 
-    const title = hero.querySelector('h1');
-    const sub = hero.querySelector('p');
+    const copy = hero.querySelector('.hero-copy');
+    const visual = hero.querySelector('.hero-visual');
     let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
 
     const onMove = (e: MouseEvent) => {
@@ -82,9 +124,9 @@ const links = linksConfig.links;
     const loop = () => {
       tx += (cx - tx) * 0.08;
       ty += (cy - ty) * 0.08;
-      // 标题位移略大于副标题，形成轻微深度视差；幅度很小，克制
-      if (title) title.style.transform = `translate3d(${(tx * -14).toFixed(2)}px, ${(ty * -10).toFixed(2)}px, 0)`;
-      if (sub) sub.style.transform = `translate3d(${(tx * -7).toFixed(2)}px, ${(ty * -5).toFixed(2)}px, 0)`;
+      // 文字与装饰以不同幅度位移，形成深度视差
+      if (copy) copy.style.transform = `translate3d(${(tx * -10).toFixed(2)}px, ${(ty * -7).toFixed(2)}px, 0)`;
+      if (visual) visual.style.transform = `translate3d(${(tx * 14).toFixed(2)}px, ${(ty * 10).toFixed(2)}px, 0)`;
       raf = requestAnimationFrame(loop);
     };
 
