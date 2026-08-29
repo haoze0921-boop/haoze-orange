@@ -56,6 +56,7 @@ for (const rel of files) {
     const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${++i}.${ext}`;
     const file = path.join(dir, name);
     writeFileSync(file, buf);
+    // 提示：若图片体积仍大，可手动压缩（如转 WebP/JPEG q82）后替换同名文件
     const url = `${BASE}/images/${month}/${name}`;
     // 只替换这一处（用字符串拼接而非全局 replace，避免替换错位）
     const dataPart = m[0];
