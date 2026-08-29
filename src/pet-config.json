@@ -15,9 +15,9 @@
     "durationMs": 5000
   },
   "ai": {
-    "baseURL": "https://api.deepseek.com",
-    "apiKey": "sk-2835783b93574111ac0b8988f8906279",
-    "model": "deepseek-v4-flash",
+    "baseURL": "https://integrate.api.nvidia.com/v1",
+    "apiKey": "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",
+    "model": "gemma-4-31b-it",
     "temperature": 0.8,
     "maxTokens": 200
   },
