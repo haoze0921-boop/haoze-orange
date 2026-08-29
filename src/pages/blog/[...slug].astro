@@ -45,7 +45,7 @@ const vtName = 'vt-' + post.id.replace(/\//g, '-');
         }
         {
           post.data.tags.map((tag) => (
-            <a class="tag-pill" href={`${base}search?tag=${encodeURIComponent(tag)}`}>
+            <a class="tag-pill" href={`${base}categories?tag=${encodeURIComponent(tag)}`}>
               #{tag}
             </a>
           ))

@@ -723,6 +723,12 @@ a {
   transform: scale(0.97);
 }
 
+/* 选中态：分类页标签筛选/列表内高亮当前标签 */
+.tag-pill.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
 .tag-pill-lg {
   font-size: 0.95rem;
   padding: 0.3rem 0.85rem;

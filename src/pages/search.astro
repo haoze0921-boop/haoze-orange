@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro';
 
 <Base title="搜索">
   <h1>🔍 搜索文章</h1>
-  <p class="post-excerpt">按标题、简介、标签和正文内容搜索；也可以点下面的标签，浏览同标签的文章。</p>
+  <p class="post-excerpt">按标题、简介、标签和正文内容搜索。想按分类或标签浏览？去<a href={`${import.meta.env.BASE_URL}categories`}>分类页</a>看看。</p>
 
   <input
     id="search-input"
@@ -13,7 +13,6 @@ import Base from '../layouts/Base.astro';
     placeholder="输入关键词，如：博客 / Astro / 生活"
     autocomplete="off"
   />
-  <div id="tag-cloud" class="tag-cloud" aria-label="按标签浏览"></div>
   <p id="search-status" class="search-status">加载中…</p>
   <div id="search-results" class="post-list"></div>
 
@@ -22,7 +21,6 @@ import Base from '../layouts/Base.astro';
     const input = document.getElementById('search-input') as HTMLInputElement;
     const status = document.getElementById('search-status') as HTMLElement;
     const results = document.getElementById('search-results') as HTMLElement;
-    const cloud = document.getElementById('tag-cloud') as HTMLElement;
 
     let index: Array<{
       title: string;
@@ -32,13 +30,8 @@ import Base from '../layouts/Base.astro';
       slug: string;
       body: string;
     }> = [];
-    let activeTag = readTagFromUrl();
 
-    function readTagFromUrl(): string {
-      return new URLSearchParams(window.location.search).get('tag') || '';
-    }
-
-    // 属性转义（data-tag / 标签文案）
+    // 属性转义（标签文案）
     function esc(s: string): string {
       return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     }
@@ -68,53 +61,23 @@ import Base from '../layouts/Base.astro';
       );
     }
 
-    // 标签云：聚合全部标签与数量，点按切换筛选
-    function renderCloud() {
-      const map = new Map<string, number>();
-      index.forEach((item) => (item.tags || []).forEach((t) => map.set(t, (map.get(t) || 0) + 1)));
-      const sorted = [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
-      if (!sorted.length) { cloud.innerHTML = ''; return; }
-      cloud.innerHTML = sorted
-        .map(([t, c]) => {
-          const on = t === activeTag ? ' selected' : '';
-          return `<button class="tag-pill tag-cloud-pill${on}" type="button" data-tag="${esc(t)}">#${esc(t)} <span class="tag-count">${c}</span></button>`;
-        })
-        .join('');
-      cloud.querySelectorAll('.tag-cloud-pill').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          // 再点已选中的标签 → 取消选择
-          activeTag = btn.dataset.tag === activeTag ? '' : (btn.dataset.tag || '');
-          const url = new URL(window.location.href);
-          if (activeTag) url.searchParams.set('tag', activeTag);
-          else url.searchParams.delete('tag');
-          history.pushState({}, '', url);
-          renderCloud();
-          render();
-        });
-      });
-    }
-
-    // 联合过滤：关键词 + 标签
+    // 关键词搜索
     function render() {
       const keyword = input.value.trim().toLowerCase();
       const matches = index.filter((item) => {
         const text = [item.title, item.description, item.tags.join(' '), plainText(item.body)]
           .join(' ')
           .toLowerCase();
-        const hitKw = !keyword || text.includes(keyword);
-        const hitTag = !activeTag || (item.tags || []).includes(activeTag);
-        return hitKw && hitTag;
+        return !keyword || text.includes(keyword);
       });
 
-      if (!keyword && !activeTag) {
-        status.textContent = '输入关键词，或点上面的标签浏览文章';
+      if (!keyword) {
+        status.textContent = '输入关键词，开始搜索文章';
         results.innerHTML = '';
         return;
       }
 
-      if (activeTag && keyword) status.textContent = `标签「${activeTag}」下，找到 ${matches.length} 篇含「${keyword}」的文章`;
-      else if (activeTag) status.textContent = `标签「${activeTag}」下共有 ${matches.length} 篇文章`;
-      else status.textContent = matches.length ? `找到 ${matches.length} 篇相关文章` : `没有找到与「${keyword}」相关的文章 🍊`;
+      status.textContent = matches.length ? `找到 ${matches.length} 篇相关文章` : `没有找到与「${keyword}」相关的文章 🍊`;
 
       if (matches.length === 0) {
         results.innerHTML = '<p class="post-excerpt">没有匹配的文章 🍊</p>';
@@ -124,8 +87,9 @@ import Base from '../layouts/Base.astro';
       results.innerHTML = matches
         .map((item) => {
           const desc = item.description || plainText(item.body).slice(0, 90);
+          const vt = 'vt-' + item.slug.replace(/\//g, '-');
           return `
-            <article class="post-card">
+            <article class="post-card" style="view-transition-name: ${vt}">
               <a class="post-card-link" href="${base}blog/${item.slug}">
                 <h2 class="post-card-title">${highlight(item.title, keyword)}</h2>
                 ${desc ? `<p class="post-card-desc">${highlight(desc, keyword)}</p>` : ''}
@@ -133,7 +97,7 @@ import Base from '../layouts/Base.astro';
               <div class="post-card-meta">
                 <time>${item.date}</time>
                 ${(item.tags || [])
-                  .map((t) => `<a class="tag-pill" href="${base}search?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`)
+                  .map((t) => `<a class="tag-pill" href="${base}categories?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`)
                   .join('')}
               </div>
             </article>
@@ -148,18 +112,10 @@ import Base from '../layouts/Base.astro';
       .then((r) => r.json())
       .then((data) => {
         index = data;
-        renderCloud();
         render();
       })
       .catch(() => {
         status.textContent = '索引加载失败，请刷新页面重试 🍊';
       });
-
-    // 支持浏览器后退/前进时更新 ?tag=
-    window.addEventListener('popstate', () => {
-      activeTag = readTagFromUrl();
-      renderCloud();
-      render();
-    });
   </script>
 </Base>

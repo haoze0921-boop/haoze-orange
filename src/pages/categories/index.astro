@@ -28,8 +28,9 @@ const base = import.meta.env.BASE_URL;
 
 <Base title="分类" wide>
   <h1>📁 全部分类</h1>
-  <p class="post-excerpt">共 {categories.length} 个分类 · {posts.length} 篇文章，点卡片查看该分类下的全部文章。</p>
+  <p class="post-excerpt">共 {categories.length} 个分类 · {posts.length} 篇文章。按「分类」或「标签」两种方式浏览：点分类卡片进入该分类全部文章，点标签筛选出同标签文章。</p>
 
+  <h2 class="section-title">按分类浏览</h2>
   <div class="card-grid">
     {
       categories.map(({ name, count, recent }) => (
@@ -55,4 +56,134 @@ const base = import.meta.env.BASE_URL;
       <p>还没有分类。可以在编辑后台里新建「目录」来给文章分类。</p>
     )
   }
+
+  <h2 class="section-title">按标签浏览</h2>
+  <div id="tag-cloud" class="tag-cloud" aria-label="按标签浏览文章"></div>
+  <p id="tag-status" class="search-status" role="status"></p>
+  <div id="tag-results" class="post-list"></div>
+
+  <script>
+    const base = import.meta.env.BASE_URL;
+    const cloud = document.getElementById('tag-cloud') as HTMLElement;
+    const status = document.getElementById('tag-status') as HTMLElement;
+    const results = document.getElementById('tag-results') as HTMLElement;
+
+    let index: Array<{
+      title: string;
+      description: string;
+      date: string;
+      tags: string[];
+      slug: string;
+      body: string;
+    }> = [];
+    let activeTag = readTagFromUrl();
+
+    function readTagFromUrl(): string {
+      return new URLSearchParams(window.location.search).get('tag') || '';
+    }
+
+    // 属性转义（data-tag / 标签文案）
+    function esc(s: string): string {
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    // 标签云：聚合全部标签与数量，点按切换筛选
+    function renderCloud() {
+      const map = new Map<string, number>();
+      index.forEach((item) => (item.tags || []).forEach((t) => map.set(t, (map.get(t) || 0) + 1)));
+      const sorted = [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
+      if (!sorted.length) { cloud.innerHTML = ''; return; }
+      cloud.innerHTML = sorted
+        .map(([t, c]) => {
+          const on = t === activeTag ? ' selected' : '';
+          return `<button class="tag-pill tag-cloud-pill${on}" type="button" data-tag="${esc(t)}">#${esc(t)} <span class="tag-count">${c}</span></button>`;
+        })
+        .join('');
+      cloud.querySelectorAll('.tag-cloud-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          // 再点已选中的标签 → 取消选择
+          activeTag = btn.dataset.tag === activeTag ? '' : (btn.dataset.tag || '');
+          const url = new URL(window.location.href);
+          if (activeTag) url.searchParams.set('tag', activeTag);
+          else url.searchParams.delete('tag');
+          history.pushState({}, '', url);
+          renderCloud();
+          render();
+        });
+      });
+    }
+
+    // 渲染选中标签下的文章列表
+    function render() {
+      if (!activeTag) {
+        status.textContent = '';
+        results.innerHTML = '';
+        return;
+      }
+      const matches = index.filter((item) => (item.tags || []).includes(activeTag));
+      status.textContent = `标签「${activeTag}」下共有 ${matches.length} 篇文章`;
+
+      if (matches.length === 0) {
+        results.innerHTML = '<p class="post-excerpt">没有匹配的文章 🍊</p>';
+        return;
+      }
+
+      results.innerHTML = matches
+        .map((item) => {
+          const desc = item.description || '';
+          const vt = 'vt-' + item.slug.replace(/\//g, '-');
+          return `
+            <article class="post-card" style="view-transition-name: ${vt}">
+              <a class="post-card-link" href="${base}blog/${item.slug}">
+                <h2 class="post-card-title">${esc(item.title)}</h2>
+                ${desc ? `<p class="post-card-desc">${esc(desc)}</p>` : ''}
+              </a>
+              <div class="post-card-meta">
+                <time>${item.date}</time>
+                ${(item.tags || [])
+                  .map((t) => {
+                    const on = t === activeTag ? ' selected' : '';
+                    return `<a class="tag-pill tag-link${on}" href="${base}categories?tag=${encodeURIComponent(t)}" data-tag="${esc(t)}">#${esc(t)}</a>`;
+                  })
+                  .join('')}
+              </div>
+            </article>
+          `;
+        })
+        .join('');
+
+      // 列表内的标签链接：无刷新切换标签（与标签云交互一致）
+      results.querySelectorAll('.tag-link').forEach((link) => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const t = link.dataset.tag;
+          activeTag = t === activeTag ? '' : (t || '');
+          const url = new URL(window.location.href);
+          if (activeTag) url.searchParams.set('tag', activeTag);
+          else url.searchParams.delete('tag');
+          history.pushState({}, '', url);
+          renderCloud();
+          render();
+        });
+      });
+    }
+
+    fetch(`${base}search-index.json`)
+      .then((r) => r.json())
+      .then((data) => {
+        index = data;
+        renderCloud();
+        render();
+      })
+      .catch(() => {
+        status.textContent = '标签加载失败，请刷新页面重试 🍊';
+      });
+
+    // 支持浏览器后退/前进时更新 ?tag=
+    window.addEventListener('popstate', () => {
+      activeTag = readTagFromUrl();
+      renderCloud();
+      render();
+    });
+  </script>
 </Base>
