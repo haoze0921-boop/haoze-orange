@@ -418,7 +418,7 @@ const PET = petConfig;
         const index = await res.json();
         const q = String(query || '').toLowerCase();
         const hits = (Array.isArray(index) ? index : [])
-          .filter((p) => (p.title + ' ' + (p.description || '') + ' ' + (p.tags || []).join(' ') + ' ' + (p.body || '')).toLowerCase().includes(q))
+          .filter((p) => (p.title + ' ' + (p.description || '') + ' ' + (p.tags || []).join(' ') + ' ' + (p.text || p.body || '')).toLowerCase().includes(q))
           .slice(0, 3);
         if (!hits.length) return '没有找到相关文章';
         return hits.map((h) => `《${h.title}》(${h.date || '无日期'}) 链接: ${base}blog/${h.slug}/`).join('\n');

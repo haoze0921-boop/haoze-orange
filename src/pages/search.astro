@@ -28,7 +28,7 @@ import Base from '../layouts/Base.astro';
       date: string;
       tags: string[];
       slug: string;
-      body: string;
+      text: string;
     }> = [];
 
     // 属性转义（标签文案）
@@ -36,36 +36,27 @@ import Base from '../layouts/Base.astro';
       return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     }
 
-    // 从 Markdown 源码里去掉符号，保留可读正文片段（用于搜索匹配与摘要）
-    function plainText(md: string): string {
-      return md
-        .replace(/<[^>]+>/g, ' ') // HTML 标签
-        .replace(/```[\s\S]*?```/g, ' ') // 代码块
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // 图片
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // 链接只留文字
-        .replace(/[#>*`\-_~|]/g, ' ')
-        .replace(/\s+/g, ' ');
-    }
-
-    // 把命中的关键字包上 <mark> 高亮
+    // 把命中的关键字包上 <mark> 高亮（所有匹配处）
     function highlight(text: string, keyword: string): string {
       if (!keyword) return text;
-      const i = text.toLowerCase().indexOf(keyword.toLowerCase());
-      if (i === -1) return text;
-      return (
-        text.slice(0, i) +
-        '<mark>' +
-        text.slice(i, i + keyword.length) +
-        '</mark>' +
-        text.slice(i + keyword.length)
-      );
+      const lower = text.toLowerCase();
+      const kw = keyword.toLowerCase();
+      let out = '';
+      let from = 0;
+      for (;;) {
+        const i = lower.indexOf(kw, from);
+        if (i === -1) break;
+        out += text.slice(from, i) + '<mark>' + text.slice(i, i + kw.length) + '</mark>';
+        from = i + kw.length;
+      }
+      return out + text.slice(from);
     }
 
-    // 关键词搜索
+    // 关键词搜索（索引里的 text 已是纯文本，无需正则预处理）
     function render() {
       const keyword = input.value.trim().toLowerCase();
       const matches = index.filter((item) => {
-        const text = [item.title, item.description, item.tags.join(' '), plainText(item.body)]
+        const text = [item.title, item.description, item.tags.join(' '), item.text]
           .join(' ')
           .toLowerCase();
         return !keyword || text.includes(keyword);
@@ -86,7 +77,8 @@ import Base from '../layouts/Base.astro';
 
       results.innerHTML = matches
         .map((item) => {
-          const desc = item.description || plainText(item.body).slice(0, 90);
+          // 摘要：优先用文章简介，否则从纯文本正文取片段
+          const desc = item.description || item.text.slice(0, 90) + (item.text.length > 90 ? '…' : '');
           const vt = 'vt-' + item.slug.replace(/\//g, '-');
           return `
             <article class="post-card" style="view-transition-name: ${vt}">
