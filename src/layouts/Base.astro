@@ -97,8 +97,29 @@ const base = import.meta.env.BASE_URL;
 
       // View Transitions 导航后：卡片 morph 已提供文章入场，禁用 .prose 自带动画防重播闪动
       // （直接访问/刷新时不会触发 after-swap，动画正常播放一次）
-      document.addEventListener('astro:after-swap', () => {
-        document.querySelectorAll('.prose').forEach((el) => { el.style.animation = 'none'; });
+      // 注意：页面脚本每次导航后会在同一 document 上重跑，用标志避免监听器累积
+      if (!window.__astroAfterSwapHooked) {
+        window.__astroAfterSwapHooked = true;
+        document.addEventListener('astro:after-swap', () => {
+          document.querySelectorAll('.prose').forEach((el) => { el.style.animation = 'none'; });
+        });
+      }
+
+      // 返回链接「智能返回」：若是站内导航进来的（history.state.index > 0），
+      // 用 history.back() 触发 Astro 的 traverse，恢复上一页停留的滚动位置；
+      // 直接打开页面（无站内历史）时退回默认 href 跳转。
+      // 说明：普通 <a> 点击会被 ClientRouter 当作「前进」导航并滚到顶部，
+      // 只有 history.back() 才会让 Astro 从 history.state 恢复滚动。
+      document.querySelectorAll('.back-link a').forEach((link) => {
+        link.addEventListener('click', (ev) => {
+          const st = window.history.state;
+          const canGoBack = st && typeof st.index === 'number' && st.index > 0;
+          if (canGoBack) {
+            ev.preventDefault();
+            window.history.back();
+          }
+          // else: 无站内可退历史 → 走默认 href 跳转
+        });
       });
     </script>
   </body>

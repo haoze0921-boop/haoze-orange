@@ -50,7 +50,9 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* 注意：不用全局 scroll-behavior: smooth，它会干扰 Astro View Transitions
+     对滚动位置的瞬时恢复（恢复会被"平滑"掉导致停在半路/顶部） */
+  scroll-behavior: auto;
 }
 
 body {
