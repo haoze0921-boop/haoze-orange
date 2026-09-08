@@ -746,7 +746,7 @@ a {
   color: #a05307;
 }
 
-/* 详情页返回链接 */
+/* 详情页返回链接（分类页用；文章页已改为面包屑） */
 .back-link {
   margin: 0 0 0.6rem;
 }
@@ -763,6 +763,124 @@ a {
 }
 
 .back-link a:active { transform: scale(0.97); }
+
+/* ============================================================
+   面包屑（文章页顶部）：首页 / 分类 / 标题
+   让「回到哪」一目了然，替代语义模糊的「返回首页」
+   ============================================================ */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.crumb-link {
+  color: var(--text-muted);
+  transition: color 0.15s, transform 0.16s var(--ease-out);
+  display: inline-block;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crumb-link:hover {
+    color: var(--accent-strong);
+    text-decoration: none;
+  }
+}
+
+.crumb-link:active {
+  transform: scale(0.97);
+}
+
+.crumb-sep {
+  color: #d8cdb8;
+  user-select: none;
+}
+
+.crumb-current {
+  color: var(--text-muted);
+  font-weight: 500;
+  /* 长标题不换行、省略号收尾 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42ch;
+}
+
+/* ============================================================
+   文章上下篇导航：较新 / 较旧的一篇
+   ============================================================ */
+.post-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin: 1.6rem 0 0.6rem;
+}
+
+.post-nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--card);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .post-nav-link:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: rgba(239, 154, 22, 0.35);
+    text-decoration: none;
+    color: var(--text);
+  }
+}
+
+.post-nav-link:active {
+  transform: scale(0.98);
+}
+
+.post-nav-next {
+  text-align: right;
+}
+
+.post-nav-dir {
+  font-size: 0.78rem;
+  color: var(--accent-strong);
+  letter-spacing: 0.02em;
+}
+
+.post-nav-title {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 只有一侧时占满整行，避免空位 */
+.post-nav-link:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 520px) {
+  .post-nav {
+    grid-template-columns: 1fr;
+  }
+  .post-nav-next {
+    text-align: left;
+  }
+}
 
 /* 标签云 */
 .tag-cloud {

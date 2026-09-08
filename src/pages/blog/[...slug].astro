@@ -20,11 +20,31 @@ const base = import.meta.env.BASE_URL;
 const cat = post.id.includes('/') ? post.id.slice(0, post.id.indexOf('/')) : '';
 // View Transition 共享名：与首页/分类页的 PostCard 同名，点击卡片时「卡片展开成文章」
 const vtName = 'vt-' + post.id.replace(/\//g, '-');
+
+// 上一篇 / 下一篇：按发布日期倒序排全部可见文章，找当前文章的相邻两篇
+const allPosts = await getVisiblePosts();
+const byDate = [...allPosts].sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const curIdx = byDate.findIndex((p) => p.id === post.id);
+const prevPost = curIdx > 0 ? byDate[curIdx - 1] : null; // 较新的一篇
+const nextPost = curIdx >= 0 && curIdx < byDate.length - 1 ? byDate[curIdx + 1] : null; // 较旧的一篇
 ---
 
 <Base title={post.data.title} description={post.data.description}>
   <div class="reading-progress" id="reading-progress" aria-hidden="true"></div>
-  <p class="back-link"><a href={`${base}`}>← 返回首页</a></p>
+
+  <nav class="breadcrumb" aria-label="面包屑导航">
+    <a class="crumb-link" href={`${base}`}>🍊 首页</a>
+    {
+      cat && (
+        <>
+          <span class="crumb-sep" aria-hidden="true">/</span>
+          <a class="crumb-link" href={`${base}categories/${encodeURIComponent(cat)}`}>{cat}</a>
+        </>
+      )
+    }
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <span class="crumb-current" aria-current="page">{post.data.title}</span>
+  </nav>
 
   <article class="prose" style={`view-transition-name: ${vtName}`}>
     <header class="post-header">
@@ -60,6 +80,25 @@ const vtName = 'vt-' + post.id.replace(/\//g, '-');
 
     <Content />
   </article>
+
+  <nav class="post-nav" aria-label="文章上下篇导航">
+    {
+      prevPost && (
+        <a class="post-nav-link post-nav-prev" href={`${base}blog/${prevPost.id}`}>
+          <span class="post-nav-dir">← 较新的一篇</span>
+          <span class="post-nav-title">{prevPost.data.title}</span>
+        </a>
+      )
+    }
+    {
+      nextPost && (
+        <a class="post-nav-link post-nav-next" href={`${base}blog/${nextPost.id}`}>
+          <span class="post-nav-dir">较旧的一篇 →</span>
+          <span class="post-nav-title">{nextPost.data.title}</span>
+        </a>
+      )
+    }
+  </nav>
 </Base>
 
 <script>
