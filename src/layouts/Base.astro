@@ -105,11 +105,57 @@ const base = import.meta.env.BASE_URL;
         });
       }
 
-      // 返回链接「智能返回」：若是站内导航进来的（history.state.index > 0），
-      // 用 history.back() 触发 Astro 的 traverse，恢复上一页停留的滚动位置；
+      // ---- 滚动位置记忆（自管，不依赖 Astro 内部恢复）----
+      // 问题背景：Astro View Transitions 只在「浏览器后退/前进」时用
+      // history.state 恢复滚动，且记录依赖 scrollend 事件，经常恢复失败
+      //（回到顶部）。这里改用 sessionStorage 自己记录每个页面的滚动位置，
+      // 在返回导航完成后确定性恢复。
+      if (!window.__orangeScrollKeeper) {
+        window.__orangeScrollKeeper = true;
+
+        // 1) 持续记录：滚动时把 当前路径 → scrollY 写入 sessionStorage
+        const scrollKey = () => 'scroll-pos:' + location.pathname;
+        let scrollTicking = false;
+        const rememberScroll = () => {
+          scrollTicking = false;
+          try { sessionStorage.setItem(scrollKey(), String(window.scrollY)); } catch { /* 忽略 */ }
+        };
+        window.addEventListener('scroll', () => {
+          if (scrollTicking) return;
+          scrollTicking = true;
+          requestAnimationFrame(rememberScroll);
+        }, { passive: true });
+
+        // 2) 标记「这是返回/前进导航」（popstate 只由 back/forward 触发，
+        //    普通点击链接的 Astro 导航不会触发它）
+        window.__expectRestore = false;
+        window.addEventListener('popstate', () => {
+          window.__expectRestore = true;
+        });
+
+        // 3) 导航完成（含首次加载与每次 swap 后）时，若上一步是返回/前进，
+        //    从记忆里恢复目标页的滚动位置。放在 astro:page-load 执行，
+        //    晚于 Astro 自己的恢复，可以覆盖其失败的结果。
+        document.addEventListener('astro:page-load', () => {
+          if (!window.__expectRestore) return;
+          window.__expectRestore = false;
+          // 等 DOM/图片就绪后再滚（首帧往往高度未定）
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              try {
+                const y = Number(sessionStorage.getItem('scroll-pos:' + location.pathname) || '0');
+                window.scrollTo(0, y);
+              } catch { /* 忽略 */ }
+            }, 0);
+          });
+        });
+      }
+
+      // 返回链接「智能返回」：站内导航进来的（history.state.index > 0）
+      // 走 history.back()（正确维护历史栈 + 触发上面的滚动恢复）；
       // 直接打开页面（无站内历史）时退回默认 href 跳转。
       // 说明：普通 <a> 点击会被 ClientRouter 当作「前进」导航并滚到顶部，
-      // 只有 history.back() 才会让 Astro 从 history.state 恢复滚动。
+      // 所以这里必须拦截成历史后退，而不是让 Astro 再 push 一条记录。
       document.querySelectorAll('.back-link a').forEach((link) => {
         link.addEventListener('click', (ev) => {
           const st = window.history.state;
