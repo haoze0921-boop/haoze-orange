@@ -151,20 +151,35 @@ const base = import.meta.env.BASE_URL;
         });
       }
 
-      // 返回链接「智能返回」：站内导航进来的（history.state.index > 0）
-      // 走 history.back()（正确维护历史栈 + 触发上面的滚动恢复）；
-      // 直接打开页面（无站内历史）时退回默认 href 跳转。
+      // ---- 站内导航栈：记录访问过的本站页面，供返回链接判断「能否回来源页」----
+      if (!window.__orangeNavStack) {
+        window.__orangeNavStack = true;
+        document.addEventListener('astro:page-load', () => {
+          try {
+            const stack = JSON.parse(sessionStorage.getItem('orange-nav-stack') || '[]');
+            const cur = location.pathname + location.search;
+            if (stack[stack.length - 1] !== cur) stack.push(cur);
+            sessionStorage.setItem('orange-nav-stack', JSON.stringify(stack.slice(-50)));
+          } catch { /* 忽略 */ }
+        });
+      }
+
+      // 返回链接「智能返回」：只要站内导航栈里有上一页（即用户是从本站某页
+      // 进入当前文章的），就走 history.back()，配合上面的滚动记忆恢复来源页
+      // 的停留位置；只有直接打开页面（站内无上一页）时才退回默认 href 跳转。
       // 说明：普通 <a> 点击会被 ClientRouter 当作「前进」导航并滚到顶部，
       // 所以这里必须拦截成历史后退，而不是让 Astro 再 push 一条记录。
       document.querySelectorAll('.back-link a').forEach((link) => {
         link.addEventListener('click', (ev) => {
-          const st = window.history.state;
-          const canGoBack = st && typeof st.index === 'number' && st.index > 0;
-          if (canGoBack) {
+          let stack = [];
+          try { stack = JSON.parse(sessionStorage.getItem('orange-nav-stack') || '[]'); } catch { /* 忽略 */ }
+          const cur = location.pathname + location.search;
+          const hasPrev = stack.length >= 2 && stack[stack.length - 2] !== cur;
+          if (hasPrev) {
             ev.preventDefault();
             window.history.back();
           }
-          // else: 无站内可退历史 → 走默认 href 跳转
+          // else: 站内无上一页（直接打开/新标签进入）→ 走默认 href 跳转
         });
       });
     </script>
