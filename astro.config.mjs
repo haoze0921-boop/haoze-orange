@@ -10,10 +10,12 @@ export default defineConfig({
   // 本地开发/预览的监听地址：
   // 绑定 127.0.0.1（IPv4），避免 Windows 上 localhost 只解析到 IPv6 导致"拒绝连接"
   server: {
-    host: '127.0.0.1',
+    host: 'localhost',
+    port: 4321,
   },
   preview: {
-    host: '127.0.0.1',
+    host: 'localhost',
+    port: 4321,
   },
   vite: {
     plugins: [

@@ -397,6 +397,7 @@
     try {
       const p = await api('/api/pet');
       setSel($('p-enabled'), p.enabled);
+      setSel($('p-chat-enabled'), p.chatEnabled);
       $('p-baseurl').value = p.ai.baseURL || '';
       $('p-apikey').value = p.ai.apiKey || '';
       $('p-model').value = p.ai.model || '';
@@ -420,6 +421,7 @@
   $('btn-save-pet').addEventListener('click', async () => {
     const body = {
       enabled: $('p-enabled').value === 'true',
+      chatEnabled: $('p-chat-enabled').value === 'true',
       ai: {
         baseURL: $('p-baseurl').value.trim(),
         apiKey: $('p-apikey').value, // 不 trim，Key 原样保存

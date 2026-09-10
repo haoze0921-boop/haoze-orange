@@ -5,26 +5,32 @@
 const base = import.meta.env.BASE_URL;
 import petConfig from '../pet-config.json';
 const PET = petConfig;
+const petEnabled = PET.enabled !== false;  // 默认显示
+const chatEnabled = PET.chatEnabled !== false;  // 默认开启对话
 ---
 
-<div class="pet-wrap" id="pet-wrap" aria-hidden="true">
-  <div class="pet-bubble" id="pet-bubble"></div>
-  <img class="pet-img" id="pet-img" src={`${base}pet/front.png`} alt="" draggable="false">
-</div>
-
-<div class="pet-chat" id="pet-chat" role="dialog" aria-label="桌宠聊天">
-  <div class="pet-chat-head">
-    <span class="pet-chat-name">{PET.persona.name || '桌宠'}</span>
-    <button class="pet-chat-close" id="pet-chat-close" type="button" title="关闭聊天" aria-label="关闭聊天">✕</button>
+{petEnabled && (
+  <div class="pet-wrap" id="pet-wrap" aria-hidden="true">
+    <div class="pet-bubble" id="pet-bubble"></div>
+    <img class="pet-img" id="pet-img" src={`${base}pet/front.png`} alt="" draggable="false">
   </div>
-  <div class="pet-chat-msgs" id="pet-chat-msgs"></div>
-  <div class="pet-chat-input">
-    <input id="pet-chat-input" type="text" placeholder={`和${PET.persona.name || '桌宠'}说点什么…`} autocomplete="off" maxlength="200">
-    <button id="pet-chat-send" type="button">发送</button>
-  </div>
-</div>
+)}
 
-<script is:inline type="application/json" id="pet-config" set:html={JSON.stringify(PET).replace(/</g, '\\u003c')}></script>
+{petEnabled && chatEnabled && (
+  <div class="pet-chat" id="pet-chat" role="dialog" aria-label="桌宠聊天">
+    <div class="pet-chat-head">
+      <span class="pet-chat-name">{PET.persona.name || '桌宠'}</span>
+      <button class="pet-chat-close" id="pet-chat-close" type="button" title="关闭聊天" aria-label="关闭聊天">✕</button>
+    </div>
+    <div class="pet-chat-msgs" id="pet-chat-msgs"></div>
+    <div class="pet-chat-input">
+      <input id="pet-chat-input" type="text" placeholder={`和${PET.persona.name || '桌宠'}说点什么…`} autocomplete="off" maxlength="200">
+      <button id="pet-chat-send" type="button">发送</button>
+    </div>
+  </div>
+)}
+
+<script is:inline type="application/json" id="pet-config" set:html={JSON.stringify({ ...PET, chatEnabled }).replace(/</g, '\\u003c')}></script>
 
 <style>
   .pet-wrap {
@@ -232,6 +238,7 @@ const PET = petConfig;
     const AI = (CFG && CFG.ai) || {};
     const PERSONA = (CFG && CFG.persona) || {};
     const TOOLS = (CFG && CFG.tools) || {};
+    const CHAT_ENABLED = CFG && CFG.chatEnabled !== false;
     const bubbleMessages = (BUBBLE.messages && BUBBLE.messages.length) ? BUBBLE.messages : ['喵～'];
     const base = import.meta.env.BASE_URL;
 
@@ -297,7 +304,7 @@ const PET = petConfig;
       wrap.classList.remove('dragging');
       if (!moved) {
         playOnce('jumping');
-        openChat();
+        if (CHAT_ENABLED) openChat();
       } else {
         savePos(); // 拖到新位置后记住
       }
@@ -338,12 +345,13 @@ const PET = petConfig;
       wasNear = near;
     });
 
-    // ---------- 聊天框 ----------
+    // ---------- 聊天框（chatEnabled 为 false 时 DOM 不存在，跳过） ----------
     const chat = document.getElementById('pet-chat');
     const msgsEl = document.getElementById('pet-chat-msgs');
     const chatInput = document.getElementById('pet-chat-input');
     const chatSend = document.getElementById('pet-chat-send');
     const chatClose = document.getElementById('pet-chat-close');
+    if (!chat || !CHAT_ENABLED) return;  // 没有聊天框就到此为止
 
     function openChat() {
       chat.classList.remove('closing'); // 若正在退场，取消并重新打开

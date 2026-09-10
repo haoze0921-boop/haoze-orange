@@ -154,12 +154,20 @@
       <p class="panel-tip">配置右下角桌宠与 AI 聊天。保存后点「发布到网上」生效。<strong>注意：AI 的 API Key 会写进网页源码并随仓库公开，请用额度受限、可随时吊销的 Key。</strong></p>
     </div>
     <div class="settings-form">
-      <label class="settings-field">显示桌宠
-        <select id="p-enabled" class="field">
-          <option value="true">显示</option>
-          <option value="false">隐藏</option>
-        </select>
-      </label>
+      <div class="nav-row">
+        <label class="settings-field" style="flex:1">显示桌宠
+          <select id="p-enabled" class="field">
+            <option value="true">显示</option>
+            <option value="false">隐藏</option>
+          </select>
+        </label>
+        <label class="settings-field" style="flex:1">对话功能
+          <select id="p-chat-enabled" class="field">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
+        </label>
+      </div>
 
       <div class="settings-label">🤖 AI 配置（OpenAI 兼容接口）</div>
       <label class="settings-field">接口地址
