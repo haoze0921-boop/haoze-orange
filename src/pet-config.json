@@ -1,5 +1,6 @@
 {
   "enabled": true,
+  "chatEnabled": false,
   "bubble": {
     "enabled": true,
     "messages": [

@@ -480,6 +480,7 @@ const PET_CONFIG_FILE = path.join(ROOT, 'src', 'pet-config.json');
 
 const DEFAULT_PET_CONFIG = {
   enabled: true,
+  chatEnabled: true,
   bubble: {
     enabled: true,
     messages: ['你好呀～', '喵～', '🍊 今天也要开心哦', '带我逛逛你的博客吧', '嘿嘿，被你发现啦', '累了，想喝口橙汁～'],
@@ -536,6 +537,7 @@ function sanitizePetConfig(input) {
     : [...DEFAULT_PET_CONFIG.bubble.messages];
   return {
     enabled: bool(b.enabled, true),
+    chatEnabled: bool(b.chatEnabled, true),
     bubble: {
       enabled: bool(b.bubble && b.bubble.enabled, true),
       messages: msgs,
